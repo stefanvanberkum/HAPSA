@@ -23,6 +23,65 @@
 
 package hapsa;
 
-public class Shelf {
+import java.util.ArrayList;
 
+/**
+ * The Shelf class provides definitions and methods for a store shelf. Shelves
+ * are sorted based on their relative attractiveness (non-increasing order).
+ *
+ * @author Stefan van Berkum
+ *
+ */
+public class Shelf implements Comparable<Shelf> {
+
+    /** The relative attractiveness of this shelf. */
+    private double attractiveness = 0;
+
+    /** The number of horizontal positions on this shelf. */
+    private int horizontal;
+
+    /** The set of segments on this shelf. */
+    private ArrayList<Segment> segments;
+
+    /**
+     * Constructs a store shelf.
+     * 
+     * @param segments   the set of segments on this shelf
+     * @param horizontal the number of horizontal positions on this shelf
+     */
+    public Shelf(ArrayList<Segment> segments, int horizontal) {
+	this.segments = segments;
+	this.horizontal = horizontal;
+
+	double totalAttr = 0;
+	double totalCap = 0;
+	for (Segment segment : segments) {
+	    totalAttr += segment.getAttractiveness() * segment.getCapacity();
+	    totalCap += segment.getCapacity();
+	}
+	this.attractiveness = totalAttr / totalCap;
+    }
+
+    @Override
+    public int compareTo(Shelf otherShelf) {
+	return Double.compare(otherShelf.attractiveness, this.attractiveness);
+    }
+
+    /**
+     * Gets the number of horizontal positions.
+     *
+     * @return the number horizontal positions
+     */
+    public int getHorizontal() {
+	return this.horizontal;
+    }
+
+    /**
+     * Gets the segments.
+     *
+     * @return the segments
+     */
+    public ArrayList<Segment> getSegments() {
+	return this.segments;
+    }
 }

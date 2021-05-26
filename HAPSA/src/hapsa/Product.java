@@ -32,30 +32,41 @@ package hapsa;
  */
 public class Product {
 
+    /** The expected demand of this product on a single segment. */
+    private int demand;
+
     /** True if this product is a fast mover. */
     private boolean fastMover;
 
+    /** The health score of this product. */
+    private int healthScore;
+
+    /**
+     * The impulse purchase potential of this product, between zero (exclusive) and
+     * one (inclusive).
+     */
+    private double impulse;
+
     /** The profit margin of this product. */
     private double margin;
-    /** The impulse purchase potential of this product. */
-    private double impulse;
+
     /**
      * The maximum attainable profit on a single segment for this product. Equals
      * {@link #margin} * {@link #impulse} * {@link #demand}.
      */
     private double maxProfit;
-    /** The minimum space to be allocated to this product. */
-    private double minSpace;
+
     /** The maximum space to be allocated to this product. */
     private double maxSpace;
+
     /**
      * The minimum space to be allocated on any segment that this product is
      * assigned to.
      */
     private double minAllocated;
 
-    /** The expected demand of this product on a single segment. */
-    private int demand;
+    /** The minimum space to be allocated to this product. */
+    private double minSpace;
 
     /**
      * Constructs a product. Computes maximum attainable profit with given profit
@@ -63,7 +74,8 @@ public class Product {
      * 
      * @param fastMover    True if this product is a fast mover
      * @param margin       The profit margin of this product
-     * @param impulse      The impulse purchase potential of this product
+     * @param impulse      The impulse purchase potential of this product, between
+     *                     zero (exclusive) and one (inclusive)
      * @param minSpace     The minimum space to be allocated to this product
      * @param maxSpace     The maximum space to be allocated to this product
      * @param minAllocated The minimum space to be allocated on any segment that
@@ -92,13 +104,96 @@ public class Product {
      * @param maxSpace     The maximum space to be allocated to this product
      * @param minAllocated The minimum space to be allocated on any segment that
      *                     this product is assigned to
+     * @param healthScore  The health score of this product
      */
-    public Product(boolean fastMover, double maxProfit, double minSpace, double maxSpace, double minAllocated) {
+    public Product(boolean fastMover, double maxProfit, double minSpace, double maxSpace, double minAllocated,
+	    int healthScore) {
 	this.fastMover = fastMover;
 	this.maxProfit = maxProfit;
 	this.minSpace = minSpace;
 	this.maxSpace = maxSpace;
 	this.minAllocated = minAllocated;
+	this.healthScore = healthScore;
     }
 
+    /**
+     * Gets the demand.
+     *
+     * @return the demand
+     */
+    public int getDemand() {
+	return this.demand;
+    }
+
+    /**
+     * Gets the health score.
+     *
+     * @return the health score
+     */
+    public int getHealthScore() {
+	return this.healthScore;
+    }
+
+    /**
+     * Gets the impulse.
+     *
+     * @return the impulse
+     */
+    public double getImpulse() {
+	return this.impulse;
+    }
+
+    /**
+     * Gets the margin.
+     *
+     * @return the margin
+     */
+    public double getMargin() {
+	return this.margin;
+    }
+
+    /**
+     * Gets the maxProfit.
+     *
+     * @return the maxProfit
+     */
+    public double getMaxProfit() {
+	return this.maxProfit;
+    }
+
+    /**
+     * Gets the maxSpace.
+     *
+     * @return the maxSpace
+     */
+    public double getMaxSpace() {
+	return this.maxSpace;
+    }
+
+    /**
+     * Gets the minAllocated.
+     *
+     * @return the minAllocated
+     */
+    public double getMinAllocated() {
+	return this.minAllocated;
+    }
+
+    /**
+     * Gets the minSpace.
+     *
+     * @return the minSpace
+     */
+    public double getMinSpace() {
+	return this.minSpace;
+    }
+
+    /**
+     * Gets the fastMover.
+     *
+     * @return the fastMover
+     */
+    public boolean isFastMover() {
+	return this.fastMover;
+    }
 }
