@@ -229,8 +229,11 @@ public class StoreSimulator {
 	double maxProfit = Math.round(100.0 * randMaxProfit) / 100.0;
 	double randMinSpace = MIN_SPACE_LB + (MIN_SPACE_UB - MIN_SPACE_LB) * this.rand.nextDouble();
 	int minSpace = Math.toIntExact(Math.round(randMinSpace));
-	double randMaxSpace = minSpace + (MAX_SPACE_UB - minSpace) * this.rand.nextDouble();
-	int maxSpace = Math.toIntExact(Math.round(randMaxSpace));
+	int maxSpace = minSpace;
+	while (maxSpace == minSpace) {
+	    double randMaxSpace = minSpace + (MAX_SPACE_UB - minSpace) * this.rand.nextDouble();
+	    maxSpace = Math.toIntExact(Math.round(randMaxSpace));
+	}
 	double randHealthScore = HEALTH_SCORE_LB + (HEALTH_SCORE_UB - HEALTH_SCORE_LB) * this.rand.nextDouble();
 	int healthScore = Math.toIntExact(Math.round(randHealthScore));
 	return new Product(false, maxProfit, minSpace, maxSpace, MIN_ALLOCATED, healthScore);

@@ -23,6 +23,9 @@
 
 package hapsa;
 
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.TreeSet;
@@ -49,6 +52,9 @@ public class Solution {
 	APSA, AVA, HAPSA, HLUR, VIS
     }
 
+    /** The current objective value of this problem. */
+    private double objective;
+
     /**
      * Decision variable s_kj, the amount of space allocated to product category j
      * on shelf segment k.
@@ -57,6 +63,9 @@ public class Solution {
 
     /* The store considered in this solution. */
     private Store store;
+
+    /** The upper bound of this problem. */
+    private double upperBound;
 
     /**
      * Decision variable x_ij, equal to one iff product category j is assigned to
@@ -118,128 +127,12 @@ public class Solution {
     }
 
     /**
-     * Computes the objective value of this solution for the objective functions of
-     * type: AVA, HLUR, and VIS.
-     * 
-     * @param obj   the objective function, one of: AVA, HLUR, or VIS
-     * @param param the parameter corresponding to the objective function
+     * Gets the objective value.
+     *
      * @return the objective value
      */
-    public double getObjective(Objective obj, double param) {
-	double objective = 0;
-
-	for (int i = 0; i < this.store.getShelves().size(); i++) {
-	    Shelf shelf = this.store.getShelves().get(i);
-	    int nh = shelf.getHorizontal();
-
-	    for (int k = 0; k < shelf.getSegments().size(); k++) {
-		Segment segment = shelf.getSegments().get(k);
-
-		for (int j = 0; j < this.store.getProducts().size(); j++) {
-		    Product product = this.store.getProducts().get(j);
-
-		    double fsc = segment.getAttractiveness() * this.s[k][j] / segment.getCapacity();
-		    objective += product.getMaxProfit() * fsc;
-		    switch (obj) {
-		    case AVA:
-			objective -= param * this.y[k][j] / product.getHealthScore();
-			break;
-		    case HLUR:
-			if (k % nh != 0) {
-			    // Shelf segment k is not the rightmost segment.
-			    double yhh = 0;
-
-			    for (int k2 = k + 1; k2 < k + (nh - k % nh); k2++) {
-				// Shelf segments to the right of shelf segment k.
-
-				for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
-				    Product product2 = this.store.getProducts().get(j2);
-				    double hh = product2.getHealthScore() - product.getHealthScore();
-				    yhh += this.y[k2][j2] * hh;
-				}
-			    }
-			    objective -= param * this.y[k][j] * yhh;
-			}
-			break;
-		    default:
-			objective -= param / product.getHealthScore() * fsc;
-			break;
-		    }
-		}
-	    }
-	}
-	return objective;
-    }
-
-    /**
-     * Computes the objective value of this solution for the objective function of
-     * type APSA.
-     * 
-     * @return the objective value
-     */
-    public double getObjectiveAPSA() {
-	double objective = 0;
-
-	for (int k = 0; k < this.store.getSegments().size(); k++) {
-	    Segment segment = this.store.getSegments().get(k);
-
-	    for (int j = 0; j < this.store.getProducts().size(); j++) {
-		Product product = this.store.getProducts().get(j);
-
-		double fsc = segment.getAttractiveness() * this.s[k][j] / segment.getCapacity();
-		objective += product.getMaxProfit() * fsc;
-	    }
-	}
-	return objective;
-    }
-
-    /**
-     * Computes the objective value of this solution for the objective function of
-     * type HAPSA.
-     * 
-     * @param gamma the visibility penalty parameter gamma
-     * @param theta the healthy-left, unhealthy-right parameter theta
-     * @return the objective value
-     */
-    public double getObjectiveHAPSA(double gamma, double theta) {
-	double objective = 0;
-
-	for (int i = 0; i < this.store.getShelves().size(); i++) {
-	    Shelf shelf = this.store.getShelves().get(i);
-	    int nh = shelf.getHorizontal();
-
-	    for (int k = 0; k < shelf.getSegments().size(); k++) {
-		Segment segment = shelf.getSegments().get(k);
-
-		for (int j = 0; j < this.store.getProducts().size(); j++) {
-		    Product product = this.store.getProducts().get(j);
-
-		    double fsc = segment.getAttractiveness() * this.s[k][j] / segment.getCapacity();
-		    objective += product.getMaxProfit() * fsc;
-
-		    // Visibility penalty.
-		    objective -= gamma / product.getHealthScore() * fsc;
-
-		    // Healthy-left, unhealthy-right approach.
-		    if (k % nh != 0) {
-			// Shelf segment k is not the rightmost segment.
-			double yhh = 0;
-
-			for (int k2 = k + 1; k2 < k + (nh - k % nh); k2++) {
-			    // Shelf segments to the right of shelf segment k.
-
-			    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
-				Product product2 = this.store.getProducts().get(j2);
-				double hh = product2.getHealthScore() - product.getHealthScore();
-				yhh += this.y[k2][j2] * hh;
-			    }
-			}
-			objective -= theta * this.y[k][j] * yhh;
-		    }
-		}
-	    }
-	}
-	return objective;
+    public double getObjective() {
+	return this.objective;
     }
 
     /**
@@ -309,6 +202,15 @@ public class Solution {
      */
     public Store getStore() {
 	return this.store;
+    }
+
+    /**
+     * Gets the upper bound.
+     *
+     * @return the upper bound
+     */
+    public double getUpperBound() {
+	return this.upperBound;
     }
 
     /**
@@ -401,6 +303,55 @@ public class Solution {
     }
 
     /**
+     * Sets the upper bound.
+     *
+     * @param upperBound the upper bound to set
+     */
+    public void setUpperBound(double upperBound) {
+	this.upperBound = upperBound;
+    }
+
+    /**
+     * Computes and updates the objective value of this solution for the objective
+     * functions of type: AVA, HLUR, and VIS.
+     * 
+     * @param obj   the objective function, one of: AVA, HLUR, or VIS
+     * @param param the parameter corresponding to the objective function
+     * @return the objective value
+     */
+    public double updateObjective(Objective obj, double param) {
+	double objective = this.getObjective(obj, param);
+	this.objective = objective;
+	return objective;
+    }
+
+    /**
+     * Computes the objective value of this solution for the objective function of
+     * type APSA.
+     * 
+     * @return the objective value
+     */
+    public double updateObjectiveAPSA() {
+	double objective = this.getObjectiveAPSA();
+	this.objective = objective;
+	return objective;
+    }
+
+    /**
+     * Computes the objective value of this solution for the objective function of
+     * type HAPSA.
+     * 
+     * @param gamma the visibility penalty parameter gamma
+     * @param theta the healthy-left, unhealthy-right parameter theta
+     * @return the objective value
+     */
+    public double updateObjectiveHAPSA(double gamma, double theta) {
+	double objective = this.getObjectiveHAPSA(gamma, theta);
+	this.objective = objective;
+	return objective;
+    }
+
+    /**
      * Updates the current solution based on partial results, corresponding to a set
      * of shelf indices.
      * 
@@ -427,5 +378,215 @@ public class Solution {
 		}
 	    }
 	}
+    }
+
+    /**
+     * Writes the solution to a text file.
+     * 
+     * @param fileName the name of the file
+     * @param runTime  run time in seconds
+     */
+    public void writeSolution(String fileName, int runTime) {
+	try (PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
+	    out.println("Results of run:\n");
+
+	    // Retrieve scores.
+	    int nk = this.store.getShelves().get(0).getSegments().size();
+	    double profit = 0;
+	    double totalCapacity = 0;
+	    double shs = 0;
+	    double svhs = 0;
+	    int[] segCapacity = new int[nk];
+	    double[] seghs = new double[nk];
+	    for (int i = 0; i < this.store.getShelves().size(); i++) {
+		Shelf shelf = this.store.getShelves().get(i);
+		int startK = i * nk;
+
+		for (int k = 0; k < nk; k++) {
+		    Segment segment = shelf.getSegments().get(k);
+
+		    totalCapacity += segment.getCapacity();
+		    segCapacity[k] += segment.getCapacity();
+
+		    for (int j = 0; j < this.store.getProducts().size(); j++) {
+			Product product = this.store.getProducts().get(j);
+
+			double sc = this.s[startK + k][j] / segment.getCapacity();
+			double fsc = product.getMaxProfit() * sc;
+			profit += product.getMaxProfit() * fsc;
+			double hsc = product.getHealthScore() * sc;
+			shs += hsc;
+			svhs += segment.getAttractiveness() * hsc;
+			seghs[k] += hsc;
+		    }
+		}
+	    }
+	    shs = shs / totalCapacity;
+	    svhs = svhs / totalCapacity;
+	    for (int k = 0; k < nk; k++) {
+		seghs[k] = seghs[k] / segCapacity[k];
+	    }
+
+	    // Write profit to file.
+	    out.println("Profit: " + profit + "\n");
+
+	    // Write Store-average Health Score to file.
+	    out.println("SHS: " + shs + "\n");
+
+	    // Write Store-average Visibility-weighted Health Score to file.
+	    out.println("SVHS: " + svhs + "\n");
+
+	    // Write Segment-average Health Score to file.
+	    int nh = this.store.getShelves().get(0).getHorizontal();
+	    int k = 0;
+	    out.println("Segment-average Health Scores:");
+	    for (int row = 0; row < nk / nh; row++) {
+		for (int col = 0; col < nh; col++) {
+		    out.print(seghs[k]);
+		    if (col < nh - 1) {
+			out.print(" ");
+		    }
+		}
+		out.println();
+	    }
+	    out.println();
+
+	    // Write stats to file.
+	    out.println("Statistics:");
+	    out.println("Objective: " + this.objective);
+	    out.println("Upper bound: " + this.upperBound);
+	    out.println("Gap: " + ((this.upperBound - this.objective) / this.upperBound));
+	    out.println("Run time: " + runTime);
+
+	} catch (IOException e) {
+	    System.err.println("Solution could not be written in Solution.writeSolution(...).");
+	    e.printStackTrace();
+	    System.exit(-1);
+	}
+    }
+
+    /**
+     * Computes the objective value of this solution for the objective functions of
+     * type: AVA, HLUR, and VIS.
+     * 
+     * @param obj   the objective function, one of: AVA, HLUR, or VIS
+     * @param param the parameter corresponding to the objective function
+     * @return the objective value
+     */
+    private double getObjective(Objective obj, double param) {
+	double objective = 0;
+
+	for (int i = 0; i < this.store.getShelves().size(); i++) {
+	    Shelf shelf = this.store.getShelves().get(i);
+	    int startK = i * shelf.getSegments().size();
+	    int nh = shelf.getHorizontal();
+
+	    for (int k = 0; k < shelf.getSegments().size(); k++) {
+		Segment segment = shelf.getSegments().get(k);
+
+		for (int j = 0; j < this.store.getProducts().size(); j++) {
+		    Product product = this.store.getProducts().get(j);
+
+		    double fsc = segment.getAttractiveness() * this.s[startK + k][j] / segment.getCapacity();
+		    objective += product.getMaxProfit() * fsc;
+		    switch (obj) {
+		    case AVA:
+			objective -= param * this.y[startK + k][j] / product.getHealthScore();
+			break;
+		    case HLUR:
+			objective += param * this.y[startK + k][j] * product.getHealthScore();
+			break;
+		    default:
+			objective -= param / product.getHealthScore() * fsc;
+			break;
+		    }
+		}
+		if (obj == Objective.HLUR) {
+		    if ((k + 1) % nh != 0) {
+			// Shelf segment k is not the rightmost segment.
+
+			for (int k2 = k + 1; k2 <= k + (nh - (k + 1) % nh); k2++) {
+			    // Shelf segments to the right of shelf segment k.
+
+			    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
+				Product product2 = this.store.getProducts().get(j2);
+				objective -= param * this.y[startK + k2][j2] * product2.getHealthScore();
+			    }
+			}
+		    }
+		}
+	    }
+	}
+	return objective;
+    }
+
+    /**
+     * Computes the objective value of this solution for the objective function of
+     * type APSA.
+     * 
+     * @return the objective value
+     */
+    private double getObjectiveAPSA() {
+	double objective = 0;
+
+	for (int k = 0; k < this.store.getSegments().size(); k++) {
+	    Segment segment = this.store.getSegments().get(k);
+
+	    for (int j = 0; j < this.store.getProducts().size(); j++) {
+		Product product = this.store.getProducts().get(j);
+
+		double fsc = segment.getAttractiveness() * this.s[k][j] / segment.getCapacity();
+		objective += product.getMaxProfit() * fsc;
+	    }
+	}
+	return objective;
+    }
+
+    /**
+     * Computes the objective value of this solution for the objective function of
+     * type HAPSA.
+     * 
+     * @param gamma the visibility penalty parameter gamma
+     * @param theta the healthy-left, unhealthy-right parameter theta
+     * @return the objective value
+     */
+    private double getObjectiveHAPSA(double gamma, double theta) {
+	double objective = 0;
+
+	for (int i = 0; i < this.store.getShelves().size(); i++) {
+	    Shelf shelf = this.store.getShelves().get(i);
+	    int startK = i * shelf.getSegments().size();
+	    int nh = shelf.getHorizontal();
+
+	    for (int k = 0; k < shelf.getSegments().size(); k++) {
+		Segment segment = shelf.getSegments().get(k);
+
+		for (int j = 0; j < this.store.getProducts().size(); j++) {
+		    Product product = this.store.getProducts().get(j);
+
+		    double fsc = segment.getAttractiveness() * this.s[startK + k][j] / segment.getCapacity();
+		    objective += product.getMaxProfit() * fsc;
+
+		    // Visibility penalty.
+		    objective -= gamma / product.getHealthScore() * fsc;
+
+		    // Healthy-left, unhealthy-right approach.
+		    objective += theta * this.y[startK + k][j] * product.getHealthScore();
+		}
+		if ((k + 1) % nh != 0) {
+		    // Shelf segment k is not the rightmost segment.
+
+		    for (int k2 = k + 1; k2 <= k + (nh - (k + 1) % nh); k2++) {
+			// Shelf segments to the right of shelf segment k.
+
+			for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
+			    Product product2 = this.store.getProducts().get(j2);
+			    objective -= theta * this.y[startK + k2][j2] * product2.getHealthScore();
+			}
+		    }
+		}
+	    }
+	}
+	return objective;
     }
 }

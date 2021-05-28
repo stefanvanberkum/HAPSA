@@ -555,13 +555,12 @@ public class HAPSA extends IloCplex {
     }
 
     /**
-     * Equations (1n-1r) in Flamand (2018). These constraints ensure that any two
-     * products that have allocation affinity are placed on the same shelf.
+     * Equations (1n) and (1o) in Flamand (2018). These constraints ensure that any
+     * two products that have allocation affinity are placed on the same shelf.
      * 
-     * @param xT the transpose of the matrix of decision variables x_ij
-     * @param i  the index of any shelf
+     * @param i the index of any shelf
      */
-    private void add1nopqr(IloIntVar[][] xT, int i) {
+    private void add1no(int i) {
 	try {
 	    for (SymmetricPair pair : this.store.getAllocationAffinity()) {
 		int j = pair.getIndex1();
@@ -573,20 +572,39 @@ public class HAPSA extends IloCplex {
 
 		// Equation (1o).
 		this.addGe(xx, this.sum(-1, this.z[j][jprime]), "1o" + (i + 1) + j + jprime);
+	    }
+	} catch (IloException e) {
+	    System.err.println("Constraint 1n and 1o could not be added in HAPSA.add1no(...).");
+	    e.printStackTrace();
+	    System.exit(-1);
+	}
+    }
+
+    /**
+     * Equations (1p-1r) in Flamand (2018). These constraints ensure that any two
+     * products that have allocation affinity are placed on the same shelf.
+     * 
+     * @param xT the transpose of the matrix of decision variables x_ij
+     */
+    private void add1pqr(IloIntVar[][] xT) {
+	try {
+	    for (SymmetricPair pair : this.store.getAllocationAffinity()) {
+		int j = pair.getIndex1();
+		int jprime = pair.getIndex2();
 
 		// Equation (1p).
-		this.addLe(this.z[j][jprime], this.sum(xT[j]), "1p" + (i + 1) + j);
+		this.addLe(this.z[j][jprime], this.sum(xT[j]), "1p" + j);
 
 		// Equation (1q).
-		this.addLe(this.z[j][jprime], this.sum(xT[jprime]), "1q" + (i + 1) + jprime);
+		this.addLe(this.z[j][jprime], this.sum(xT[jprime]), "1q" + jprime);
 
 		// Equation (1r).
 		IloIntExpr sumxsumx = this.sum(this.sum(xT[j]), this.sum(xT[jprime]));
 		IloIntExpr sumxsumx1 = this.sum(sumxsumx, -1);
-		this.addGe(this.z[j][jprime], sumxsumx1, "1r" + (i + 1) + j + jprime);
+		this.addGe(this.z[j][jprime], sumxsumx1, "1r" + j + jprime);
 	    }
 	} catch (IloException e) {
-	    System.err.println("Constraint 1n-1r could not be added in HAPSA.add1nopqr(...).");
+	    System.err.println("Constraint 1p-1r could not be added in HAPSA.add1pqr(...).");
 	    e.printStackTrace();
 	    System.exit(-1);
 	}
@@ -670,6 +688,8 @@ public class HAPSA extends IloCplex {
 	IloIntVar[][] xT = Utils.getTranspose(this.x);
 	IloIntVar[][] yT = Utils.getTranspose(this.y);
 
+	this.add1pqr(xT);
+
 	// All constraints with: (for each shelf).
 	for (int i = 0; i < this.store.getShelves().size(); i++) {
 	    Shelf shelf = this.store.getShelves().get(i);
@@ -677,7 +697,7 @@ public class HAPSA extends IloCplex {
 	    this.add1k(i);
 	    this.add1l(i);
 	    this.add1m(i);
-	    this.add1nopqr(xT, i);
+	    this.add1no(i);
 
 	    // All constraints with: (for each shelf, for each segment).
 	    for (int k = 0; k < shelf.getSegments().size(); k++) {
@@ -773,50 +793,16 @@ public class HAPSA extends IloCplex {
 			    subtrahend = this.sum(subtrahend, this.prod(gammah, fsc));
 
 			    // Healthy-left, unhealthy-right approach.
-			    IloIntExpr sumsumyhh = this.constant(0);
-			    int nh = shelf.getHorizontal();
-
-			    if (k % nh != 0) {
-				// Shelf segment k is not the rightmost segment.
-
-				for (int k2 = k + 1; k2 < k + (nh - k % nh); k2++) {
-				    // Shelf segments to the right of shelf segment k.
-
-				    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
-					Product product2 = this.store.getProducts().get(j2);
-					int hh = product2.getHealthScore() - product.getHealthScore();
-					IloIntExpr yhh = this.prod(y[startK + k2][j2], hh);
-					sumsumyhh = this.sum(sumsumyhh, yhh);
-				    }
-				}
-				IloIntExpr ysumsumyhh = this.prod(y[startK + k][j], sumsumyhh);
-				subtrahend = this.sum(subtrahend, ysumsumyhh);
-			    }
+			    double thetah = this.theta * product.getHealthScore();
+			    minuend = this.sum(minuend, this.prod(thetah, this.y[startK + k][j]));
 			    break;
 			case HLUR:
 			    if (this.theta == null) {
 				throw new IllegalStateException("Theta has not been initialized.");
 			    }
 
-			    IloIntExpr sumsumyhh2 = this.constant(0);
-			    int nh2 = shelf.getHorizontal();
-
-			    if (k % nh2 != 0) {
-				// Shelf segment k is not the rightmost segment.
-
-				for (int k2 = k + 1; k2 < k + (nh2 - k % nh2); k2++) {
-				    // Shelf segments to the right of shelf segment k.
-
-				    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
-					Product product2 = this.store.getProducts().get(j2);
-					int hh = product2.getHealthScore() - product.getHealthScore();
-					IloIntExpr yhh = this.prod(y[startK + k2][j2], hh);
-					sumsumyhh = this.sum(sumsumyhh2, yhh);
-				    }
-				}
-				IloIntExpr ysumsumyhh2 = this.prod(y[startK + k][j], sumsumyhh2);
-				subtrahend = this.sum(subtrahend, ysumsumyhh2);
-			    }
+			    double thetah2 = this.theta * product.getHealthScore();
+			    minuend = this.sum(minuend, this.prod(thetah2, this.y[startK + k][j]));
 			    break;
 			case VIS:
 			    if (this.gamma == null) {
@@ -828,6 +814,26 @@ public class HAPSA extends IloCplex {
 			    break;
 			default:
 			    break;
+			}
+		    }
+		    if (obj == Objective.HAPSA || obj == Objective.HLUR) {
+			IloIntExpr sumsumy2h2 = this.constant(0);
+			int nh = shelf.getHorizontal();
+
+			if ((k + 1) % nh != 0) {
+			    // Shelf segment k is not the rightmost segment.
+
+			    for (int k2 = k + 1; k2 <= k + (nh - (k + 1) % nh); k2++) {
+				// Shelf segments to the right of shelf segment k.
+
+				for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
+				    Product product2 = this.store.getProducts().get(j2);
+				    IloIntExpr y2h2 = this.prod(this.y[startK + k2][j2], product2.getHealthScore());
+				    sumsumy2h2 = this.sum(sumsumy2h2, y2h2);
+				}
+			    }
+			    IloNumExpr thetasumsumy2h2 = this.prod(this.theta, sumsumy2h2);
+			    subtrahend = this.sum(subtrahend, thetasumsumy2h2);
 			}
 		    }
 		}

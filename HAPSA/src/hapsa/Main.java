@@ -23,6 +23,9 @@
 
 package hapsa;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -34,6 +37,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import ilog.concert.IloException;
 import ilog.concert.IloIntVar;
 import ilog.concert.IloNumVar;
+import ilog.cplex.IloCplex;
+import ilog.cplex.IloCplex.ParameterSet;
 
 public class Main {
 
@@ -55,15 +60,28 @@ public class Main {
     /** The time limit in seconds required for termination. */
     private static int STOP_TIME = 3600;
 
+    public static void createDirectories() {
+	try {
+	    Files.createDirectories(Paths.get("Results/APSA/"));
+	    Files.createDirectories(Paths.get("Results/AVA/"));
+	    Files.createDirectories(Paths.get("Results/HAPSA/"));
+	    Files.createDirectories(Paths.get("Results/APSA/"));
+	    Files.createDirectories(Paths.get("Results/HAPSA/"));
+	} catch (IOException e) {
+	    System.err.println("Directory could not be created in Main.createDirectories().");
+	}
+    }
+
     public static void main(String[] args) {
 	System.out.println("Simulating the first store...");
-	Store store1 = (new StoreSimulator(240, 30, 1)).simulate();
-	Solution apsa1 = solveAPSA(store1);
+	Store store = (new StoreSimulator(400, 50, 0)).simulate();
+	solveAPSA(store);
 
-	// Store store2 = (new StoreSimulator(320, 40, 2)).simulate();
-	// Store store3 = (new StoreSimulator(400, 50, 3)).simulate();
-	// Store store4 = (new StoreSimulator(480, 60, 4)).simulate();
-	// Store store5 = (new StoreSimulator(800, 100, 5)).simulate();
+	double[] gammas = new double[] { 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10 };
+	for (double gamma : gammas) {
+	    solveHAPSA(store, gamma, 0);
+	}
+
     }
 
     public static Solution solve(Store store, SSP.Objective obj, double param) {
@@ -115,7 +133,7 @@ public class Main {
 
 	    Store oneShelfStore = result.partialStore(shelves, nonSelected);
 	    try (SSP initModel = new SSP(oneShelfStore)) {
-		System.out.println("Shelf " + sh + " out of " + sortedShelves.size() + ".");
+		System.out.println("Shelf " + (sh + 1) + " out of " + sortedShelves.size() + ".");
 
 		switch (obj) {
 		case AVA:
@@ -129,6 +147,10 @@ public class Main {
 		    break;
 		}
 		initModel.setObjective(obj);
+		int ni = store.getShelves().size();
+		int nj = store.getProducts().size();
+		ParameterSet params = initModel.readParameterSet("Parameters/SSP/" + obj + "_" + ni + "_" + nj);
+		initModel.setParameterSet(params);
 		boolean feasible = initModel.solve();
 
 		if (!feasible) {
@@ -138,22 +160,23 @@ public class Main {
 		System.out.println("Feasible solution found! Type: " + initModel.getStatus() + "\n");
 
 		double[] w = initModel.getValues(initModel.getW());
-		for (int j = 0; j < w.length; j++) {
-		    if (w[j] == 1) {
+		for (int pr = 0; pr < w.length; pr++) {
+		    int j = nonSelected.get(pr);
+		    if (w[pr] == 1) {
 			// This product is selected on this shelf.
 			selected.add(store.getProducts().get(j));
 		    }
-		    x[i][j] = w[j];
+		    x[i][j] = w[pr];
 		}
 
 		for (SymmetricPair pair : store.getAllocationAffinity()) {
 		    int j1 = pair.getIndex1();
 		    int j2 = pair.getIndex2();
-		    if (w[j1] == 1) {
+		    if (nonSelected.contains(j1) && w[nonSelected.indexOf(j1)] == 1) {
 			// Product 2 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j2));
 		    }
-		    if (w[j2] == 1) {
+		    if (nonSelected.contains(j2) && w[nonSelected.indexOf(j2)] == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
 		    }
@@ -161,9 +184,17 @@ public class Main {
 
 		IloNumVar[][] sInit = initModel.getS();
 		IloIntVar[][] yInit = initModel.getY();
-		for (int k = 0; k < sInit.length; k++) {
-		    s[i * sInit.length + k] = initModel.getValues(sInit[k]);
-		    y[i * sInit.length + k] = initModel.getValues(yInit[k]);
+		for (int seg = 0; seg < oneShelfStore.getSegments().size(); seg++) {
+		    Segment segment = oneShelfStore.getSegments().get(seg);
+		    int k = store.getSegments().indexOf(segment);
+
+		    for (int pr = 0; pr < oneShelfStore.getProducts().size(); pr++) {
+			Product product = oneShelfStore.getProducts().get(pr);
+			int j = store.getProducts().indexOf(product);
+
+			s[k][j] = initModel.getValue(sInit[seg][pr]);
+			y[k][j] = initModel.getValue(yInit[seg][pr]);
+		    }
 		}
 
 		if (selected.size() == store.getProducts().size()) {
@@ -175,7 +206,7 @@ public class Main {
 		System.exit(-1);
 	    }
 	}
-	return new Solution(s, x, y, store);
+	return result;
     }
 
     private static Solution initializeAPSA(Store store) throws IllegalStateException {
@@ -185,15 +216,33 @@ public class Main {
 	double[][] s = new double[store.getSegments().size()][store.getProducts().size()];
 	double[][] x = new double[store.getShelves().size()][store.getProducts().size()];
 	double[][] y = new double[store.getSegments().size()][store.getProducts().size()];
+	Solution result = new Solution(s, x, y, store);
 
 	System.out.println("Initiating APSA initialization procedure...");
 
 	for (int sh = 0; sh < sortedShelves.size(); sh++) {
 	    int i = store.getShelves().indexOf(sortedShelves.get(sh));
-	    try (SSP initModel = new SSP(store, sortedShelves.get(sh), selected)) {
-		System.out.println("Shelf " + sh + " out of " + sortedShelves.size() + ".");
+	    Shelf shelf = sortedShelves.get(sh);
+	    ArrayList<Shelf> shelves = new ArrayList<Shelf>(1);
+	    shelves.add(shelf);
+
+	    TreeSet<Integer> products = new TreeSet<Integer>();
+	    for (Product product : store.getProducts()) {
+		if (!selected.contains(product)) {
+		    products.add(store.getProducts().indexOf(product));
+		}
+	    }
+	    ArrayList<Integer> nonSelected = new ArrayList<Integer>(products);
+
+	    Store oneShelfStore = result.partialStore(shelves, nonSelected);
+	    try (SSP initModel = new SSP(oneShelfStore)) {
+		System.out.println("Shelf " + (sh + 1) + " out of " + sortedShelves.size() + ".");
 
 		initModel.setObjective(SSP.Objective.APSA);
+		int ni = store.getShelves().size();
+		int nj = store.getProducts().size();
+		ParameterSet params = initModel.readParameterSet("Parameters/SSP/APSA_" + ni + "_" + nj);
+		initModel.setParameterSet(params);
 		boolean feasible = initModel.solve();
 
 		if (!feasible) {
@@ -203,22 +252,23 @@ public class Main {
 		System.out.println("Feasible solution found! Type: " + initModel.getStatus() + "\n");
 
 		double[] w = initModel.getValues(initModel.getW());
-		for (int j = 0; j < w.length; j++) {
-		    if (w[j] == 1) {
+		for (int pr = 0; pr < w.length; pr++) {
+		    int j = nonSelected.get(pr);
+		    if (w[pr] == 1) {
 			// This product is selected on this shelf.
 			selected.add(store.getProducts().get(j));
 		    }
-		    x[i][j] = w[j];
+		    x[i][j] = w[pr];
 		}
 
 		for (SymmetricPair pair : store.getAllocationAffinity()) {
 		    int j1 = pair.getIndex1();
 		    int j2 = pair.getIndex2();
-		    if (w[j1] == 1) {
+		    if (nonSelected.contains(j1) && w[nonSelected.indexOf(j1)] == 1) {
 			// Product 2 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j2));
 		    }
-		    if (w[j2] == 1) {
+		    if (nonSelected.contains(j2) && w[nonSelected.indexOf(j2)] == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
 		    }
@@ -226,9 +276,17 @@ public class Main {
 
 		IloNumVar[][] sInit = initModel.getS();
 		IloIntVar[][] yInit = initModel.getY();
-		for (int k = 0; k < sInit.length; k++) {
-		    s[i * sInit.length + k] = initModel.getValues(sInit[k]);
-		    y[i * sInit.length + k] = initModel.getValues(yInit[k]);
+		for (int seg = 0; seg < oneShelfStore.getSegments().size(); seg++) {
+		    Segment segment = oneShelfStore.getSegments().get(seg);
+		    int k = store.getSegments().indexOf(segment);
+
+		    for (int pr = 0; pr < oneShelfStore.getProducts().size(); pr++) {
+			Product product = oneShelfStore.getProducts().get(pr);
+			int j = store.getProducts().indexOf(product);
+
+			s[k][j] = initModel.getValue(sInit[seg][pr]);
+			y[k][j] = initModel.getValue(yInit[seg][pr]);
+		    }
 		}
 
 		if (selected.size() == store.getProducts().size()) {
@@ -240,7 +298,7 @@ public class Main {
 		System.exit(-1);
 	    }
 	}
-	return new Solution(s, x, y, store);
+	return result;
     }
 
     private static Solution initializeHAPSA(Store store, double gamma, double theta) throws IllegalStateException {
@@ -250,17 +308,35 @@ public class Main {
 	double[][] s = new double[store.getSegments().size()][store.getProducts().size()];
 	double[][] x = new double[store.getShelves().size()][store.getProducts().size()];
 	double[][] y = new double[store.getSegments().size()][store.getProducts().size()];
+	Solution result = new Solution(s, x, y, store);
 
 	System.out.println("Initiating HAPSA initialization procedure...");
 
 	for (int sh = 0; sh < sortedShelves.size(); sh++) {
 	    int i = store.getShelves().indexOf(sortedShelves.get(sh));
-	    try (SSP initModel = new SSP(store, sortedShelves.get(sh), selected)) {
-		System.out.println("Shelf " + sh + " out of " + sortedShelves.size() + ".");
+	    Shelf shelf = sortedShelves.get(sh);
+	    ArrayList<Shelf> shelves = new ArrayList<Shelf>(1);
+	    shelves.add(shelf);
+
+	    TreeSet<Integer> products = new TreeSet<Integer>();
+	    for (Product product : store.getProducts()) {
+		if (!selected.contains(product)) {
+		    products.add(store.getProducts().indexOf(product));
+		}
+	    }
+	    ArrayList<Integer> nonSelected = new ArrayList<Integer>(products);
+
+	    Store oneShelfStore = result.partialStore(shelves, nonSelected);
+	    try (SSP initModel = new SSP(oneShelfStore)) {
+		System.out.println("Shelf " + (sh + 1) + " out of " + sortedShelves.size() + ".");
 
 		initModel.setGamma(gamma);
 		initModel.setTheta(theta);
 		initModel.setObjective(SSP.Objective.HAPSA);
+		int ni = store.getShelves().size();
+		int nj = store.getProducts().size();
+		ParameterSet params = initModel.readParameterSet("Parameters/SSP/HAPSA_" + ni + "_" + nj);
+		initModel.setParameterSet(params);
 		boolean feasible = initModel.solve();
 
 		if (!feasible) {
@@ -270,22 +346,23 @@ public class Main {
 		System.out.println("Feasible solution found! Type: " + initModel.getStatus() + "\n");
 
 		double[] w = initModel.getValues(initModel.getW());
-		for (int j = 0; j < w.length; j++) {
-		    if (w[j] == 1) {
+		for (int pr = 0; pr < w.length; pr++) {
+		    int j = nonSelected.get(pr);
+		    if (w[pr] == 1) {
 			// This product is selected on this shelf.
 			selected.add(store.getProducts().get(j));
 		    }
-		    x[i][j] = w[j];
+		    x[i][j] = w[pr];
 		}
 
 		for (SymmetricPair pair : store.getAllocationAffinity()) {
 		    int j1 = pair.getIndex1();
 		    int j2 = pair.getIndex2();
-		    if (w[j1] == 1) {
+		    if (nonSelected.contains(j1) && w[nonSelected.indexOf(j1)] == 1) {
 			// Product 2 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j2));
 		    }
-		    if (w[j2] == 1) {
+		    if (nonSelected.contains(j2) && w[nonSelected.indexOf(j2)] == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
 		    }
@@ -293,9 +370,17 @@ public class Main {
 
 		IloNumVar[][] sInit = initModel.getS();
 		IloIntVar[][] yInit = initModel.getY();
-		for (int k = 0; k < sInit.length; k++) {
-		    s[i * sInit.length + k] = initModel.getValues(sInit[k]);
-		    y[i * sInit.length + k] = initModel.getValues(yInit[k]);
+		for (int seg = 0; seg < oneShelfStore.getSegments().size(); seg++) {
+		    Segment segment = oneShelfStore.getSegments().get(seg);
+		    int k = store.getSegments().indexOf(segment);
+
+		    for (int pr = 0; pr < oneShelfStore.getProducts().size(); pr++) {
+			Product product = oneShelfStore.getProducts().get(pr);
+			int j = store.getProducts().indexOf(product);
+
+			s[k][j] = initModel.getValue(sInit[seg][pr]);
+			y[k][j] = initModel.getValue(yInit[seg][pr]);
+		    }
 		}
 
 		if (selected.size() == store.getProducts().size()) {
@@ -307,11 +392,13 @@ public class Main {
 		System.exit(-1);
 	    }
 	}
-	return new Solution(s, x, y, store);
+	return result;
     }
 
     private static Solution reOptimize(Solution init, Store store, HAPSA.Objective obj, double param) {
 	System.out.println("Initiating " + obj + " re-optimization procedure...");
+	int ni = store.getShelves().size();
+	int nj = store.getProducts().size();
 
 	// Solve continuous relaxation of the model.
 	double upperBound = Double.MAX_VALUE;
@@ -329,6 +416,8 @@ public class Main {
 	    }
 	    continuous.setObjective(obj);
 	    continuous.relax();
+	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/" + obj + "_" + ni + "_" + nj);
+	    continuous.setParameterSet(params);
 	    boolean feasible = continuous.solve();
 	    if (!feasible) {
 		throw new IllegalStateException("No feasible upper bound found.");
@@ -354,7 +443,7 @@ public class Main {
 	    solObj = Solution.Objective.VIS;
 	    break;
 	}
-	double objective = incumbent.getObjective(solObj, param);
+	double objective = incumbent.updateObjective(solObj, param);
 	System.out.println("Objective = " + objective);
 
 	class ObjectiveComparator implements Comparator<Shelf> {
@@ -419,6 +508,11 @@ public class Main {
 			break;
 		    }
 		    model.setObjective(obj);
+		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/" + obj + "_" + ni + "_" + nj);
+		    model.setParameterSet(params);
+		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
+		    double maxTime = 0.000015 * Math.pow((ni + nj), 2.8082);
+		    model.setParam(IloCplex.Param.TimeLimit, maxTime);
 		    boolean feasible = model.solve();
 
 		    if (!feasible) {
@@ -428,26 +522,26 @@ public class Main {
 		    System.out.println("Feasible solution found! Type: " + model.getStatus() + "\n");
 
 		    int[] shelfIndices = new int[N_REOPT];
-		    int nk = partialStore.getSegments().size();
-		    int nj = partialStore.getProducts().size();
-		    double[][] partialX = new double[N_REOPT][nj];
-		    double[][] partialS = new double[nk][nj];
-		    double[][] partialY = new double[nk][nj];
+		    int nseg = partialStore.getSegments().size();
+		    int npr = partialStore.getProducts().size();
+		    double[][] partialX = new double[N_REOPT][npr];
+		    double[][] partialS = new double[nseg][npr];
+		    double[][] partialY = new double[nseg][npr];
 
 		    for (int i = 0; i < N_REOPT; i++) {
 			shelfIndices[i] = store.getShelves().indexOf(selected.get(i));
 			partialX[i] = model.getValues(model.getX()[i]);
 		    }
 
-		    for (int k = 0; k < nk; k++) {
+		    for (int k = 0; k < nseg; k++) {
 			partialS[k] = model.getValues(model.getS()[k]);
 			partialY[k] = model.getValues(model.getY()[k]);
 		    }
 
 		    incumbent.updatePartial(shelfIndices, consideredProducts, partialS, partialX, partialY);
-		    double newObjective = incumbent.getObjective(solObj, param);
-		    if (newObjective < objective) {
-			loops++;
+		    double newObjective = incumbent.updateObjective(solObj, param);
+		    if (newObjective <= objective) {
+			loops += N_REOPT / store.getShelves().size();
 		    } else {
 			loops = 0;
 		    }
@@ -459,19 +553,23 @@ public class Main {
 		    System.exit(-1);
 		}
 	    }
-	    time = System.currentTimeMillis();
+	    time = System.currentTimeMillis() / 1000;
 	}
 	return incumbent;
     }
 
     private static Solution reOptimizeAPSA(Solution init, Store store) {
 	System.out.println("Initiating APSA re-optimization procedure...");
+	int ni = store.getShelves().size();
+	int nj = store.getProducts().size();
 
 	// Solve continuous relaxation of the model.
 	double upperBound = Double.MAX_VALUE;
 	try (HAPSA continuous = new HAPSA(store)) {
 	    continuous.setObjective(HAPSA.Objective.APSA);
 	    continuous.relax();
+	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/APSA_" + ni + "_" + nj);
+	    continuous.setParameterSet(params);
 	    boolean feasible = continuous.solve();
 	    if (!feasible) {
 		throw new IllegalStateException("No feasible upper bound found.");
@@ -519,7 +617,7 @@ public class Main {
 	    }
 	}
 
-	int loops = 0;
+	double loops = 0;
 	long startTime = System.currentTimeMillis() / 1000;
 	long time = System.currentTimeMillis() / 1000;
 	while (((upperBound - objective) / upperBound > STOP_GAP) && (loops < STOP_LOOPS)
@@ -586,6 +684,12 @@ public class Main {
 		try (HAPSA model = new HAPSA(partialStore)) {
 		    model.initializePartial(incumbent, consideredProducts);
 		    model.setObjective(HAPSA.Objective.APSA);
+
+		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/APSA_" + ni + "_" + nj);
+		    model.setParameterSet(params);
+		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
+		    double maxTime = 0.000015 * Math.pow((ni + nj), 2.8082);
+		    model.setParam(IloCplex.Param.TimeLimit, maxTime);
 		    boolean feasible = model.solve();
 
 		    if (!feasible) {
@@ -595,18 +699,18 @@ public class Main {
 		    System.out.println("Feasible solution found! Type: " + model.getStatus() + "\n");
 
 		    int[] shelfIndices = new int[N_REOPT];
-		    int nk = partialStore.getSegments().size();
-		    int nj = partialStore.getProducts().size();
-		    double[][] partialX = new double[N_REOPT][nj];
-		    double[][] partialS = new double[nk][nj];
-		    double[][] partialY = new double[nk][nj];
+		    int nseg = partialStore.getSegments().size();
+		    int npr = partialStore.getProducts().size();
+		    double[][] partialX = new double[N_REOPT][npr];
+		    double[][] partialS = new double[nseg][npr];
+		    double[][] partialY = new double[nseg][npr];
 
 		    for (int i = 0; i < N_REOPT; i++) {
 			shelfIndices[i] = store.getShelves().indexOf(selected.get(i));
 			partialX[i] = model.getValues(model.getX()[i]);
 		    }
 
-		    for (int k = 0; k < nk; k++) {
+		    for (int k = 0; k < nseg; k++) {
 			partialS[k] = model.getValues(model.getS()[k]);
 			partialY[k] = model.getValues(model.getY()[k]);
 		    }
@@ -619,8 +723,8 @@ public class Main {
 			partialObj2 += incumbent.getShelfObjectiveAPSA(shelf);
 		    }
 		    double newObjective = incumbent.getObjectiveAPSA();
-		    if (newObjective < objective) {
-			loops++;
+		    if (newObjective <= objective) {
+			loops += N_REOPT / store.getShelves().size();
 		    } else {
 			loops = 0;
 		    }
@@ -632,13 +736,16 @@ public class Main {
 		    System.exit(-1);
 		}
 	    }
-	    time = System.currentTimeMillis();
+	    time = System.currentTimeMillis() / 1000;
+	    System.out.println("Elapsed time algorithm: " + (time - startTime) + " seconds");
 	}
 	return incumbent;
     }
 
     private static Solution reOptimizeHAPSA(Solution init, Store store, double gamma, double theta) {
 	System.out.println("Initiating HAPSA re-optimization procedure...");
+	int ni = store.getShelves().size();
+	int nj = store.getProducts().size();
 
 	// Solve continuous relaxation of the model.
 	double upperBound = Double.MAX_VALUE;
@@ -647,6 +754,8 @@ public class Main {
 	    continuous.setTheta(theta);
 	    continuous.setObjective(HAPSA.Objective.HAPSA);
 	    continuous.relax();
+	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/HAPSA_" + ni + "_" + nj);
+	    continuous.setParameterSet(params);
 	    boolean feasible = continuous.solve();
 	    if (!feasible) {
 		throw new IllegalStateException("No feasible upper bound found.");
@@ -716,6 +825,11 @@ public class Main {
 		    model.setGamma(gamma);
 		    model.setTheta(theta);
 		    model.setObjective(HAPSA.Objective.HAPSA);
+		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/HAPSA_" + ni + "_" + nj);
+		    model.setParameterSet(params);
+		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
+		    double maxTime = 0.000015 * Math.pow((ni + nj), 2.8082);
+		    model.setParam(IloCplex.Param.TimeLimit, maxTime);
 		    boolean feasible = model.solve();
 
 		    if (!feasible) {
@@ -725,26 +839,26 @@ public class Main {
 		    System.out.println("Feasible solution found! Type: " + model.getStatus() + "\n");
 
 		    int[] shelfIndices = new int[N_REOPT];
-		    int nk = partialStore.getSegments().size();
-		    int nj = partialStore.getProducts().size();
-		    double[][] partialX = new double[N_REOPT][nj];
-		    double[][] partialS = new double[nk][nj];
-		    double[][] partialY = new double[nk][nj];
+		    int nseg = partialStore.getSegments().size();
+		    int npr = partialStore.getProducts().size();
+		    double[][] partialX = new double[N_REOPT][npr];
+		    double[][] partialS = new double[nseg][npr];
+		    double[][] partialY = new double[nseg][npr];
 
 		    for (int i = 0; i < N_REOPT; i++) {
 			shelfIndices[i] = store.getShelves().indexOf(selected.get(i));
 			partialX[i] = model.getValues(model.getX()[i]);
 		    }
 
-		    for (int k = 0; k < nk; k++) {
+		    for (int k = 0; k < nseg; k++) {
 			partialS[k] = model.getValues(model.getS()[k]);
 			partialY[k] = model.getValues(model.getY()[k]);
 		    }
 
 		    incumbent.updatePartial(shelfIndices, consideredProducts, partialS, partialX, partialY);
 		    double newObjective = incumbent.getObjectiveHAPSA(gamma, theta);
-		    if (newObjective < objective) {
-			loops++;
+		    if (newObjective <= objective) {
+			loops += N_REOPT / store.getShelves().size();
 		    } else {
 			loops = 0;
 		    }
@@ -756,8 +870,10 @@ public class Main {
 		    System.exit(-1);
 		}
 	    }
-	    time = System.currentTimeMillis();
+	    time = System.currentTimeMillis() / 1000;
 	}
+	String fileName = "Results/HAPSA/gamma_" + gamma + "_theta_" + theta;
+	incumbent.writeSolution(fileName, objective, upperBound, loops)
 	return incumbent;
     }
 }

@@ -23,8 +23,6 @@
 
 package hapsa;
 
-import java.util.HashSet;
-
 import ilog.concert.IloException;
 import ilog.concert.IloIntExpr;
 import ilog.concert.IloIntVar;
@@ -92,9 +90,6 @@ public class SSP extends IloCplex {
      */
     private final IloNumVar[][] s;
 
-    /** The set of products currently selected in the assortment. */
-    private final HashSet<Product> selected;
-
     /** The shelf that is considered in this SSP model. */
     private final Shelf shelf;
 
@@ -122,16 +117,13 @@ public class SSP extends IloCplex {
     /**
      * Constructs an SSP model.
      * 
-     * @param store    the store that is considered in this SSP model
-     * @param shelf    the shelf that is considered in this SSP model
-     * @param selected the set of currently selected products
+     * @param store the single shelf store that is considered in this SSP model
      * @throws IloException if the instance could not be created
      */
-    public SSP(Store store, Shelf shelf, HashSet<Product> selected) throws IloException {
+    public SSP(Store store) throws IloException {
 	super();
 	this.store = store;
-	this.shelf = shelf;
-	this.selected = selected;
+	this.shelf = store.getShelves().get(0);
 	this.q = new IloIntVar[shelf.getSegments().size()][store.getProducts().size()];
 	this.initBool(this.q);
 	this.s = new IloNumVar[shelf.getSegments().size()][store.getProducts().size()];
@@ -389,11 +381,9 @@ public class SSP extends IloCplex {
     private void add4j() {
 	try {
 	    for (SymmetricPair pair : this.store.getAllocationDisaffinity()) {
-		if (!this.selected.contains(pair.getProduct1()) && !this.selected.contains(pair.getProduct2())) {
-		    int j = pair.getIndex1();
-		    int jprime = pair.getIndex2();
-		    this.addLe(this.sum(this.w[j], this.w[jprime]), 1, "4j" + j + jprime);
-		}
+		int j = pair.getIndex1();
+		int jprime = pair.getIndex2();
+		this.addLe(this.sum(this.w[j], this.w[jprime]), 1, "4j" + j + jprime);
 	    }
 	} catch (IloException e) {
 	    System.err.println("Constraint 4j could not be added in SSP.add4j(...).");
@@ -410,12 +400,10 @@ public class SSP extends IloCplex {
     private void add4k() {
 	try {
 	    for (SymmetricPair pair : this.store.getSymmetricAssortment()) {
-		if (!this.selected.contains(pair.getProduct1()) && !this.selected.contains(pair.getProduct2())) {
-		    int j = pair.getIndex1();
-		    int jprime = pair.getIndex2();
-		    IloIntExpr ww = this.diff(this.w[j], this.w[jprime]);
-		    this.addEq(ww, 0, "4k" + j + jprime);
-		}
+		int j = pair.getIndex1();
+		int jprime = pair.getIndex2();
+		IloIntExpr ww = this.diff(this.w[j], this.w[jprime]);
+		this.addEq(ww, 0, "4k" + j + jprime);
 	    }
 	} catch (IloException e) {
 	    System.err.println("Constraint 4k could not be added in SSP.add4k(...).");
@@ -433,11 +421,9 @@ public class SSP extends IloCplex {
     private void add4l() {
 	try {
 	    for (AsymmetricPair pair : this.store.getAsymmetricAssortment()) {
-		if (!this.selected.contains(pair.getProduct1()) && !this.selected.contains(pair.getProduct2())) {
-		    int j = pair.getIndex1();
-		    int jprime = pair.getIndex2();
-		    this.addLe(this.w[j], this.w[jprime], "4l" + j + jprime);
-		}
+		int j = pair.getIndex1();
+		int jprime = pair.getIndex2();
+		this.addLe(this.w[j], this.w[jprime], "4l" + j + jprime);
 	    }
 	} catch (IloException e) {
 	    System.err.println("Constraint 4l could not be added in SSP.add4l(...).");
@@ -476,65 +462,47 @@ public class SSP extends IloCplex {
      * Adds constraints for this SSP model.
      */
     private void addConstraints() {
-	try {
-	    // Get transpose of all matrix variables.
-	    IloNumVar[][] sT = Utils.getTranspose(this.s);
-	    IloIntVar[][] yT = Utils.getTranspose(this.y);
+	// Get transpose of all matrix variables.
+	IloNumVar[][] sT = Utils.getTranspose(this.s);
+	IloIntVar[][] yT = Utils.getTranspose(this.y);
 
-	    // All constraints with: (for each segment).
-	    for (int k = 0; k < this.shelf.getSegments().size(); k++) {
-		Segment segment = this.shelf.getSegments().get(k);
+	// All constraints with: (for each segment).
+	for (int k = 0; k < this.shelf.getSegments().size(); k++) {
+	    Segment segment = this.shelf.getSegments().get(k);
 
-		this.add4b(segment, k);
+	    this.add4b(segment, k);
 
-		if (k < this.shelf.getSegments().size() - 1) {
-		    this.add4i(k);
-		}
-
-		// All constraints with: (for each segment, for each product).
-		for (int j = 0; j < this.store.getProducts().size(); j++) {
-		    Product product = this.store.getProducts().get(j);
-
-		    if (!this.selected.contains(product)) {
-			this.add4d(segment, k, product, j);
-			this.add4e(k, product, j);
-			this.add4f(k, j);
-			this.add4m(k, product, j);
-
-			if (k < this.shelf.getSegments().size() - 1) {
-			    this.add4h(k, j);
-			}
-		    } else {
-			// Make sure q_kj, s_kj, and y_kj are zero for selected categories (in S).
-			this.addEq(this.q[k][j], 0);
-			this.addEq(this.s[k][j], 0);
-			this.addEq(this.y[k][j], 0);
-		    }
-		}
+	    if (k < this.shelf.getSegments().size() - 1) {
+		this.add4i(k);
 	    }
 
-	    // All constraints with: (for each product).
+	    // All constraints with: (for each segment, for each product).
 	    for (int j = 0; j < this.store.getProducts().size(); j++) {
 		Product product = this.store.getProducts().get(j);
 
-		if (!this.selected.contains(product)) {
-		    this.add4c(sT, product, j);
-		    this.add4g(yT, j);
-		} else {
-		    // Make sure that w_j is zero for selected categories (in S).
-		    this.addEq(this.w[j], 0);
+		this.add4d(segment, k, product, j);
+		this.add4e(k, product, j);
+		this.add4f(k, j);
+		this.add4m(k, product, j);
+
+		if (k < this.shelf.getSegments().size() - 1) {
+		    this.add4h(k, j);
 		}
 	    }
-
-	    // Affinity relationship constraints.
-	    this.add4j();
-	    this.add4k();
-	    this.add4l();
-	} catch (IloException e) {
-	    System.err.println("A constraint could not be added in SSP.setConstraints().");
-	    e.printStackTrace();
-	    System.exit(-1);
 	}
+
+	// All constraints with: (for each product).
+	for (int j = 0; j < this.store.getProducts().size(); j++) {
+	    Product product = this.store.getProducts().get(j);
+
+	    this.add4c(sT, product, j);
+	    this.add4g(yT, j);
+	}
+
+	// Affinity relationship constraints.
+	this.add4j();
+	this.add4k();
+	this.add4l();
     }
 
     /**
@@ -554,87 +522,71 @@ public class SSP extends IloCplex {
 		for (int j = 0; j < this.store.getProducts().size(); j++) {
 		    Product product = this.store.getProducts().get(j);
 
-		    if (!this.selected.contains(product)) {
-			double fc = segment.getAttractiveness() / segment.getCapacity();
-			IloNumExpr fsc = this.prod(fc, this.s[k][j]);
-			IloNumExpr phifsc = this.prod(product.getMaxProfit(), fsc);
-			minuend = this.sum(minuend, phifsc);
+		    double fc = segment.getAttractiveness() / segment.getCapacity();
+		    IloNumExpr fsc = this.prod(fc, this.s[k][j]);
+		    IloNumExpr phifsc = this.prod(product.getMaxProfit(), fsc);
+		    minuend = this.sum(minuend, phifsc);
 
-			switch (obj) {
-			case AVA:
-			    if (this.lambda == null) {
-				throw new IllegalStateException("Lambda has not been initialized.");
-			    }
-
-			    double lambdah = this.lambda / product.getHealthScore();
-			    subtrahend = this.sum(subtrahend, this.prod(lambdah, this.y[k][j]));
-			    break;
-			case HAPSA:
-			    if (this.gamma == null || this.theta == null) {
-				throw new IllegalStateException("Gamma or theta has not been initialized.");
-			    }
-
-			    // Visibility penalty.
-			    double gammah = this.gamma / product.getHealthScore();
-			    subtrahend = this.sum(subtrahend, this.prod(gammah, fsc));
-
-			    // Healthy-left, unhealthy-right approach.
-			    IloIntExpr sumsumyhh = this.constant(0);
-			    int nh = shelf.getHorizontal();
-
-			    if (k % nh != 0) {
-				// Shelf segment k is not the rightmost segment.
-
-				for (int k2 = k + 1; k2 < k + (nh - k % nh); k2++) {
-				    // Shelf segments to the right of shelf segment k.
-
-				    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
-					Product product2 = this.store.getProducts().get(j2);
-					int hh = product2.getHealthScore() - product.getHealthScore();
-					IloIntExpr yhh = this.prod(y[k2][j2], hh);
-					sumsumyhh = this.sum(sumsumyhh, yhh);
-				    }
-				}
-				IloIntExpr ysumsumyhh = this.prod(y[k][j], sumsumyhh);
-				subtrahend = this.sum(subtrahend, ysumsumyhh);
-			    }
-			    break;
-			case HLUR:
-			    if (this.theta == null) {
-				throw new IllegalStateException("Theta has not been initialized.");
-			    }
-
-			    IloIntExpr sumsumyhh2 = this.constant(0);
-			    int nh2 = shelf.getHorizontal();
-
-			    if (k % nh2 != 0) {
-				// Shelf segment k is not the rightmost segment.
-
-				for (int k2 = k + 1; k2 < k + (nh2 - k % nh2); k2++) {
-				    // Shelf segments to the right of shelf segment k.
-
-				    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
-					Product product2 = this.store.getProducts().get(j2);
-					int hh = product2.getHealthScore() - product.getHealthScore();
-					IloIntExpr yhh = this.prod(y[k2][j2], hh);
-					sumsumyhh = this.sum(sumsumyhh2, yhh);
-				    }
-				}
-				IloIntExpr ysumsumyhh2 = this.prod(y[k][j], sumsumyhh2);
-				subtrahend = this.sum(subtrahend, ysumsumyhh2);
-			    }
-			    break;
-			case VIS:
-			    if (this.gamma == null) {
-				throw new IllegalStateException("Gamma has not been initialized.");
-			    }
-
-			    double gammah2 = this.gamma / product.getHealthScore();
-			    subtrahend = this.sum(subtrahend, this.prod(gammah2, fsc));
-			    break;
-			default:
-			    break;
+		    switch (obj) {
+		    case AVA:
+			if (this.lambda == null) {
+			    throw new IllegalStateException("Lambda has not been initialized.");
 			}
+
+			double lambdah = this.lambda / product.getHealthScore();
+			subtrahend = this.sum(subtrahend, this.prod(lambdah, this.y[k][j]));
+			break;
+		    case HAPSA:
+			if (this.gamma == null || this.theta == null) {
+			    throw new IllegalStateException("Gamma or theta has not been initialized.");
+			}
+
+			// Visibility penalty.
+			double gammah = this.gamma / product.getHealthScore();
+			subtrahend = this.sum(subtrahend, this.prod(gammah, fsc));
+
+			// Healthy-left, unhealthy-right approach.
+			double thetah = this.theta * product.getHealthScore();
+			minuend = this.sum(minuend, this.prod(thetah, this.y[k][j]));
+			break;
+		    case HLUR:
+			if (this.theta == null) {
+			    throw new IllegalStateException("Theta has not been initialized.");
+			}
+
+			double thetah2 = this.theta * product.getHealthScore();
+			minuend = this.sum(minuend, this.prod(thetah2, this.y[k][j]));
+			break;
+		    case VIS:
+			if (this.gamma == null) {
+			    throw new IllegalStateException("Gamma has not been initialized.");
+			}
+
+			double gammah2 = this.gamma / product.getHealthScore();
+			subtrahend = this.sum(subtrahend, this.prod(gammah2, fsc));
+			break;
+		    default:
+			break;
+		    }
+		}
+		if (obj == Objective.HAPSA || obj == Objective.HLUR) {
+		    IloIntExpr sumsumy2h2 = this.constant(0);
+		    int nh = this.shelf.getHorizontal();
+
+		    if ((k + 1) % nh != 0) {
+			// Shelf segment k is not the rightmost segment.
+
+			for (int k2 = k + 1; k2 <= k + (nh - (k + 1) % nh); k2++) {
+			    // Shelf segments to the right of shelf segment k.
+
+			    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
+				Product product2 = this.store.getProducts().get(j2);
+				IloIntExpr y2h2 = this.prod(this.y[k2][j2], product2.getHealthScore());
+				sumsumy2h2 = this.sum(sumsumy2h2, y2h2);
+			    }
+			}
+			IloNumExpr thetasumsumy2h2 = this.prod(this.theta, sumsumy2h2);
+			subtrahend = this.sum(subtrahend, thetasumsumy2h2);
 		    }
 		}
 	    }
