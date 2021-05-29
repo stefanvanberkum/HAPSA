@@ -114,16 +114,9 @@ public class Main {
      * @param param the parameter that corresponds to the objective function type
      * @return the solution
      */
-    public static Solution solve(Store store, SSP.Objective obj, double param) {
+    public static Solution solve(Store store, Model.Objective obj, double param) {
 	Solution solution = initialize(store, obj, param);
-	switch (obj) {
-	case AVA:
-	    return reOptimize(solution, store, HAPSA.Objective.AVA, param);
-	case HLUR:
-	    return reOptimize(solution, store, HAPSA.Objective.HLUR, param);
-	default:
-	    return reOptimize(solution, store, HAPSA.Objective.VIS, param);
-	}
+	return reOptimize(solution, store, obj, param);
     }
 
     /**
@@ -164,7 +157,7 @@ public class Main {
      * @throws IllegalStateException when the algorithm cannot find a feasible
      *                               solution for a shelf
      */
-    private static Solution initialize(Store store, SSP.Objective obj, double param) throws IllegalStateException {
+    private static Solution initialize(Store store, Model.Objective obj, double param) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
 	HashSet<Product> selected = new HashSet<Product>();
@@ -305,7 +298,7 @@ public class Main {
 	    try (SSP initModel = new SSP(oneShelfStore)) {
 		System.out.println("Shelf " + (sh + 1) + " out of " + sortedShelves.size() + ".");
 
-		initModel.setObjective(SSP.Objective.APSA);
+		initModel.setObjective(Model.Objective.APSA);
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
 		ParameterSet params = initModel.readParameterSet("Parameters/SSP/APSA_" + ni + "_" + nj);
@@ -411,7 +404,7 @@ public class Main {
 
 		initModel.setGamma(gamma);
 		initModel.setTheta(theta);
-		initModel.setObjective(SSP.Objective.HAPSA);
+		initModel.setObjective(Model.Objective.HAPSA);
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
 		ParameterSet params = initModel.readParameterSet("Parameters/SSP/HAPSA_" + ni + "_" + nj);
@@ -484,7 +477,7 @@ public class Main {
      * @param param the parameter that corresponds to the objective function type
      * @return the solution
      */
-    private static Solution reOptimize(Solution init, Store store, HAPSA.Objective obj, double param) {
+    private static Solution reOptimize(Solution init, Store store, Model.Objective obj, double param) {
 	System.out.println("Initiating " + obj + " re-optimization procedure...");
 	int ni = store.getShelves().size();
 	int nj = store.getProducts().size();
@@ -521,19 +514,7 @@ public class Main {
 
 	Solution incumbent = init;
 	incumbent.setUpperBound(upperBound);
-	Solution.Objective solObj;
-	switch (obj) {
-	case AVA:
-	    solObj = Solution.Objective.AVA;
-	    break;
-	case HLUR:
-	    solObj = Solution.Objective.HLUR;
-	    break;
-	default:
-	    solObj = Solution.Objective.VIS;
-	    break;
-	}
-	double objective = incumbent.updateObjective(solObj, param);
+	double objective = incumbent.updateObjective(obj, param);
 	System.out.println("Objective = " + objective);
 
 	/**
@@ -546,8 +527,8 @@ public class Main {
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
-		double obj1 = incumbent.getShelfObjective(shelf1, solObj, param);
-		double obj2 = incumbent.getShelfObjective(shelf2, solObj, param);
+		double obj1 = incumbent.getShelfObjective(shelf1, obj, param);
+		double obj2 = incumbent.getShelfObjective(shelf2, obj, param);
 		return Double.compare(obj1, obj2);
 	    }
 	}
@@ -638,7 +619,7 @@ public class Main {
 		    }
 
 		    incumbent.updatePartial(shelfIndices, consideredProducts, partialS, partialX, partialY);
-		    double newObjective = incumbent.updateObjective(solObj, param);
+		    double newObjective = incumbent.updateObjective(obj, param);
 		    if (newObjective <= objective) {
 			loops += N_REOPT / store.getShelves().size();
 		    } else {
@@ -681,7 +662,7 @@ public class Main {
 	// Solve continuous relaxation of the model.
 	double upperBound = Double.MAX_VALUE;
 	try (HAPSA continuous = new HAPSA(store)) {
-	    continuous.setObjective(HAPSA.Objective.APSA);
+	    continuous.setObjective(Model.Objective.APSA);
 	    continuous.relax();
 	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/APSA_" + ni + "_" + nj);
 	    continuous.setParameterSet(params);
@@ -760,7 +741,7 @@ public class Main {
 		Store partialStore = incumbent.partialStore(selected, consideredProducts);
 		try (HAPSA model = new HAPSA(partialStore)) {
 		    model.initializePartial(incumbent, consideredProducts);
-		    model.setObjective(HAPSA.Objective.APSA);
+		    model.setObjective(Model.Objective.APSA);
 
 		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/APSA_" + ni + "_" + nj);
 		    model.setParameterSet(params);
@@ -842,7 +823,7 @@ public class Main {
 	try (HAPSA continuous = new HAPSA(store)) {
 	    continuous.setGamma(gamma);
 	    continuous.setTheta(theta);
-	    continuous.setObjective(HAPSA.Objective.HAPSA);
+	    continuous.setObjective(Model.Objective.HAPSA);
 	    continuous.relax();
 	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/HAPSA_" + ni + "_" + nj);
 	    continuous.setParameterSet(params);
@@ -923,7 +904,7 @@ public class Main {
 		    model.initializePartial(incumbent, consideredProducts);
 		    model.setGamma(gamma);
 		    model.setTheta(theta);
-		    model.setObjective(HAPSA.Objective.HAPSA);
+		    model.setObjective(Model.Objective.HAPSA);
 		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/HAPSA_" + ni + "_" + nj);
 		    model.setParameterSet(params);
 		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);

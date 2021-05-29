@@ -32,14 +32,13 @@ import ilog.concert.IloIntVar;
 import ilog.concert.IloNumExpr;
 import ilog.concert.IloNumVar;
 import ilog.concert.IloNumVarType;
-import ilog.cplex.IloCplex;
 
 /**
  * The HAPSA class provides a framework for the Health-adjusted Assortment
  * Planning and Shelf-space Allocation (HAPSA) model used in the MIP-based
  * re-optimization procedure of the optimization-based heuristic approach to
  * assortment planning and shelf space optimization. It extends the
- * {@link IloCplex} class.
+ * {@link Model} class.
  * 
  * The decision variables and constraints closely follow the notation and
  * numbering used in Flamand (2018), see:
@@ -51,37 +50,12 @@ import ilog.cplex.IloCplex;
  * @author Stefan van Berkum
  *
  */
-public class HAPSA extends IloCplex {
-
-    /**
-     * The possible objective types: Assortment Planning and Shelf-space Allocation
-     * (APSA), APSA with an availability penalty (AVA), Health-adjusted APSA
-     * (HAPSA), APSA with a Healthy-Left, Unhealthy Right approach, and APSA with a
-     * visibility penalty (VIS).
-     *
-     * @author Stefan van Berkum
-     *
-     */
-    enum Objective {
-	APSA, AVA, HAPSA, HLUR, VIS
-    }
+public class HAPSA extends Model {
 
     /**
      * Automatically generated serial ID.
      */
     private static final long serialVersionUID = -2862092852120058808L;
-
-    /**
-     * The objective-specific parameter for the objectives with a visibility penalty
-     * (VIS and HAPSA).
-     */
-    private Double gamma;
-
-    /**
-     * The objective-specific parameter for the objectives with an availability
-     * penalty (AVA).
-     */
-    private Double lambda;
 
     /**
      * Decision variable q_kj, equal to one iff product category j is assigned to
@@ -94,15 +68,6 @@ public class HAPSA extends IloCplex {
      * on shelf segment k.
      */
     private IloNumVar[][] s;
-
-    /** The store that is considered in this HAPSA model. */
-    private Store store;
-
-    /**
-     * The objective-specific parameter for the objectives with a healthy-left,
-     * unhealthy-right approach (HLUR and HAPSA).
-     */
-    private Double theta;
 
     /**
      * Decision variable x_ij, equal to one iff product category j is assigned to
@@ -129,8 +94,7 @@ public class HAPSA extends IloCplex {
      * @throws IloException if the instance could not be created
      */
     public HAPSA(Store store) throws IloException {
-	super();
-	this.store = store;
+	super(store);
 	this.q = new IloIntVar[store.getSegments().size()][store.getProducts().size()];
 	initBool(this.q);
 	this.s = new IloNumVar[store.getSegments().size()][store.getProducts().size()];
@@ -256,22 +220,6 @@ public class HAPSA extends IloCplex {
     }
 
     /**
-     * Sets the objective-specific parameter for the objectives with a visibility
-     * penalty (VIS and HAPSA).
-     */
-    public void setGamma(double val) {
-	this.gamma = val;
-    }
-
-    /**
-     * Sets the objective-specific parameter for the objectives with an availability
-     * penalty (AVA).
-     */
-    public void setLambda(double val) {
-	this.lambda = val;
-    }
-
-    /**
      * Set the objective function to the user-defined type.
      * 
      * @param obj the objective function that needs to be maximized in this SSP
@@ -298,14 +246,6 @@ public class HAPSA extends IloCplex {
      */
     public void setS(IloNumVar[][] s) {
 	this.s = s;
-    }
-
-    /**
-     * Sets the objective-specific parameter for the objectives with a healthy-left,
-     * unhealthy-right approach (HLUR and HAPSA).
-     */
-    public void setTheta(double val) {
-	this.theta = val;
     }
 
     /**
@@ -846,45 +786,4 @@ public class HAPSA extends IloCplex {
 	    return null;
 	}
     }
-
-    /**
-     * Initializes a matrix of boolean decision variables.
-     * 
-     * @param var the matrix of boolean variables
-     */
-    private void initBool(IloIntVar[][] var) {
-	for (int i = 0; i < var.length; i++) {
-	    for (int j = 0; j < var[0].length; j++) {
-		try {
-		    var[i][j] = this.boolVar();
-		} catch (IloException e) {
-		    System.err.println("A boolean variable could not be created in HAPSA.initBool(...).");
-		    e.printStackTrace();
-		    System.exit(-1);
-		}
-	    }
-	}
-    }
-
-    /**
-     * Initializes a matrix of number decision variables.
-     * 
-     * @param var a matrix of number variables
-     * @param lb  the lower bound for each variable
-     * @param ub  the upper bound for each variable
-     */
-    private void initNum(IloNumVar[][] var, double lb, double ub) {
-	for (int i = 0; i < var.length; i++) {
-	    for (int j = 0; j < var[0].length; j++) {
-		try {
-		    var[i][j] = this.numVar(lb, ub);
-		} catch (IloException e) {
-		    System.err.println("A number variable could not be created in HAPSA.initNum(...).");
-		    e.printStackTrace();
-		    System.exit(-1);
-		}
-	    }
-	}
-    }
-
 }

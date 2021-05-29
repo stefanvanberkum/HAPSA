@@ -40,19 +40,6 @@ import java.util.TreeSet;
 public class Solution {
 
     /**
-     * The possible objective types: Assortment Planning and Shelf-space Allocation
-     * (APSA), APSA with an availability penalty (AVA), Health-adjusted APSA
-     * (HAPSA), APSA with a Healthy-Left, Unhealthy Right approach, and APSA with a
-     * visibility penalty (VIS).
-     *
-     * @author Stefan van Berkum
-     *
-     */
-    enum Objective {
-	APSA, AVA, HAPSA, HLUR, VIS
-    }
-
-    /**
      * The three stop criteria, or reasons for termination. GAP: the optimality gap
      * has fallen below a user-specified threshold. LOOP: the algorithm has looped
      * over all shelves for a user-specified number of times. TIME: the algorithm
@@ -202,7 +189,7 @@ public class Solution {
      * @param param the parameter that corresponds to the objective function type
      * @return the objective value for this shelf
      */
-    public double getShelfObjective(Shelf shelf, Objective obj, double param) {
+    public double getShelfObjective(Shelf shelf, Model.Objective obj, double param) {
 	int i = this.store.getShelves().indexOf(shelf);
 	Solution partial = this.getPartial(new int[] { i });
 	return partial.getObjective(obj, param);
@@ -379,7 +366,7 @@ public class Solution {
      * @param param the parameter corresponding to the objective function
      * @return the objective value
      */
-    public double updateObjective(Objective obj, double param) {
+    public double updateObjective(Model.Objective obj, double param) {
 	double objective = this.getObjective(obj, param);
 	this.objective = objective;
 	return objective;
@@ -533,7 +520,7 @@ public class Solution {
      * @param param the parameter corresponding to the objective function
      * @return the objective value
      */
-    private double getObjective(Objective obj, double param) {
+    private double getObjective(Model.Objective obj, double param) {
 	double objective = 0;
 
 	for (int i = 0; i < this.store.getShelves().size(); i++) {
@@ -561,7 +548,7 @@ public class Solution {
 			break;
 		    }
 		}
-		if (obj == Objective.HLUR) {
+		if (obj == Model.Objective.HLUR) {
 		    if ((k + 1) % nh != 0) {
 			// Shelf segment k is not the rightmost segment.
 

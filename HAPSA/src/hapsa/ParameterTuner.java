@@ -96,16 +96,9 @@ public class ParameterTuner {
      * @param obj   the objective function type, one of: AVA, HLUR, or VIS
      * @param param the parameter that corresponds to the objective function type
      */
-    public static void tune(Store store, SSP.Objective obj, double param) {
+    public static void tune(Store store, Model.Objective obj, double param) {
 	Solution solution = initialize(store, obj, param);
-	switch (obj) {
-	case AVA:
-	    tuneReOpt(solution, store, HAPSA.Objective.AVA, param);
-	case HLUR:
-	    tuneReOpt(solution, store, HAPSA.Objective.HLUR, param);
-	default:
-	    tuneReOpt(solution, store, HAPSA.Objective.VIS, param);
-	}
+	tuneReOpt(solution, store, obj, param);
     }
 
     /**
@@ -144,7 +137,7 @@ public class ParameterTuner {
      * @throws IllegalStateException when the algorithm cannot find a feasible
      *                               solution for a shelf
      */
-    private static Solution initialize(Store store, SSP.Objective obj, double param) throws IllegalStateException {
+    private static Solution initialize(Store store, Model.Objective obj, double param) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
 	HashSet<Product> selected = new HashSet<Product>();
@@ -296,7 +289,7 @@ public class ParameterTuner {
 	    try (SSP initModel = new SSP(oneShelfStore)) {
 		System.out.println("Shelf " + (sh + 1) + " out of " + sortedShelves.size() + ".");
 
-		initModel.setObjective(SSP.Objective.APSA);
+		initModel.setObjective(Model.Objective.APSA);
 
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
@@ -413,7 +406,7 @@ public class ParameterTuner {
 
 		initModel.setGamma(gamma);
 		initModel.setTheta(theta);
-		initModel.setObjective(SSP.Objective.HAPSA);
+		initModel.setObjective(Model.Objective.HAPSA);
 
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
@@ -497,7 +490,7 @@ public class ParameterTuner {
      * @param param the parameter that corresponds to the objective function type
      * @return the solution
      */
-    private static void tuneReOpt(Solution init, Store store, HAPSA.Objective obj, double param) {
+    private static void tuneReOpt(Solution init, Store store, Model.Objective obj, double param) {
 	System.out.println("Initiating " + obj + " re-optimization tuning...");
 	int ni = store.getShelves().size();
 	int nj = store.getProducts().size();
@@ -529,19 +522,7 @@ public class ParameterTuner {
 	}
 
 	Solution incumbent = init;
-	Solution.Objective solObj;
-	switch (obj) {
-	case AVA:
-	    solObj = Solution.Objective.AVA;
-	    break;
-	case HLUR:
-	    solObj = Solution.Objective.HLUR;
-	    break;
-	default:
-	    solObj = Solution.Objective.VIS;
-	    break;
-	}
-	double objective = incumbent.updateObjective(solObj, param);
+	double objective = incumbent.updateObjective(obj, param);
 	System.out.println("Objective = " + objective);
 
 	/**
@@ -554,8 +535,8 @@ public class ParameterTuner {
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
-		double obj1 = incumbent.getShelfObjective(shelf1, solObj, param);
-		double obj2 = incumbent.getShelfObjective(shelf2, solObj, param);
+		double obj1 = incumbent.getShelfObjective(shelf1, obj, param);
+		double obj2 = incumbent.getShelfObjective(shelf2, obj, param);
 		return Double.compare(obj1, obj2);
 	    }
 	}
@@ -638,7 +619,7 @@ public class ParameterTuner {
 
 	// Solve continuous relaxation of the model.
 	try (HAPSA continuous = new HAPSA(store)) {
-	    continuous.setObjective(HAPSA.Objective.APSA);
+	    continuous.setObjective(Model.Objective.APSA);
 	    continuous.relax();
 
 	    // Collect tuning information.
@@ -705,7 +686,7 @@ public class ParameterTuner {
 	Store partialStore = incumbent.partialStore(selected, consideredProducts);
 	try (HAPSA model = new HAPSA(partialStore)) {
 	    model.initializePartial(incumbent, consideredProducts);
-	    model.setObjective(HAPSA.Objective.APSA);
+	    model.setObjective(Model.Objective.APSA);
 
 	    // Collect tuning information for the re-optimization run.
 	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
@@ -743,7 +724,7 @@ public class ParameterTuner {
 	try (HAPSA continuous = new HAPSA(store)) {
 	    continuous.setGamma(gamma);
 	    continuous.setTheta(theta);
-	    continuous.setObjective(HAPSA.Objective.HAPSA);
+	    continuous.setObjective(Model.Objective.HAPSA);
 	    continuous.relax();
 
 	    // Collect tuning information.
@@ -812,7 +793,7 @@ public class ParameterTuner {
 	    model.initializePartial(incumbent, consideredProducts);
 	    model.setGamma(gamma);
 	    model.setTheta(theta);
-	    model.setObjective(HAPSA.Objective.HAPSA);
+	    model.setObjective(Model.Objective.HAPSA);
 
 	    // Collect tuning information for the re-optimization run.
 	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
