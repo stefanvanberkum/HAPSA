@@ -27,6 +27,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
 
+/**
+ * The StoreSimulator class provides methods for the simulation of a store.
+ *
+ * @author Stefan van Berkum
+ *
+ */
 public class StoreSimulator {
 
     /** The capacity of each shelf segment. */

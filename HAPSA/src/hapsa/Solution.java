@@ -52,6 +52,19 @@ public class Solution {
 	APSA, AVA, HAPSA, HLUR, VIS
     }
 
+    /**
+     * The three stop criteria, or reasons for termination. GAP: the optimality gap
+     * has fallen below a user-specified threshold. LOOP: the algorithm has looped
+     * over all shelves for a user-specified number of times. TIME: the algorithm
+     * has terminated due to a user-specified time limit.
+     *
+     * @author Stefan van Berkum
+     *
+     */
+    enum Termination {
+	GAP, LOOP, TIME
+    }
+
     /** The current objective value of this problem. */
     private double objective;
 
@@ -63,6 +76,9 @@ public class Solution {
 
     /* The store considered in this solution. */
     private Store store;
+
+    /** The reason of termination for the re-optimization algorithm. */
+    private Termination terminationReason;
 
     /** The upper bound of this problem. */
     private double upperBound;
@@ -177,18 +193,44 @@ public class Solution {
 	return this.s;
     }
 
+    /**
+     * Gets the objective value for a single shelf, for objective functions of type:
+     * AVA, HLUR, or VIS.
+     * 
+     * @param shelf the shelf to be considered
+     * @param obj   the objective function type, one of: AVA, HLUR, or VIS
+     * @param param the parameter that corresponds to the objective function type
+     * @return the objective value for this shelf
+     */
     public double getShelfObjective(Shelf shelf, Objective obj, double param) {
 	int i = this.store.getShelves().indexOf(shelf);
 	Solution partial = this.getPartial(new int[] { i });
 	return partial.getObjective(obj, param);
     }
 
+    /**
+     * Gets the objective value for a single shelf, for the objective function type
+     * APSA.
+     * 
+     * @param shelf the shelf to be considered
+     * @return the objective value for this shelf
+     */
     public double getShelfObjectiveAPSA(Shelf shelf) {
 	int i = this.store.getShelves().indexOf(shelf);
 	Solution partial = this.getPartial(new int[] { i });
 	return partial.getObjectiveAPSA();
     }
 
+    /**
+     * Gets the objective value for a single shelf, for the objective function type
+     * HAPSA.
+     * 
+     * @param shelf the shelf to be considered
+     * @param gamma the gamma parameter for the visibility penalty
+     * @param theta the theta parameter for the healthy-left, unhealthy-right
+     *              approach
+     * @return the objective value for this shelf
+     */
     public double getShelfObjectiveHAPSA(Shelf shelf, double gamma, double theta) {
 	int i = this.store.getShelves().indexOf(shelf);
 	Solution partial = this.getPartial(new int[] { i });
@@ -202,6 +244,15 @@ public class Solution {
      */
     public Store getStore() {
 	return this.store;
+    }
+
+    /**
+     * Gets the termination reason.
+     *
+     * @return the termination reason
+     */
+    public Termination getTerminationReason() {
+	return this.terminationReason;
     }
 
     /**
@@ -303,6 +354,15 @@ public class Solution {
     }
 
     /**
+     * Sets the termination reason.
+     *
+     * @param terminationReason the termination reason to set
+     */
+    public void setTerminationReason(Termination terminationReason) {
+	this.terminationReason = terminationReason;
+    }
+
+    /**
      * Sets the upper bound.
      *
      * @param upperBound the upper bound to set
@@ -384,9 +444,9 @@ public class Solution {
      * Writes the solution to a text file.
      * 
      * @param fileName the name of the file
-     * @param runTime  run time in seconds
+     * @param runTime  the run time in seconds
      */
-    public void writeSolution(String fileName, int runTime) {
+    public void writeSolution(String fileName, long runTime) {
 	try (PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
 	    out.println("Results of run:\n");
 
@@ -456,8 +516,8 @@ public class Solution {
 	    out.println("Objective: " + this.objective);
 	    out.println("Upper bound: " + this.upperBound);
 	    out.println("Gap: " + ((this.upperBound - this.objective) / this.upperBound));
+	    out.println("Termination reason: " + this.terminationReason);
 	    out.println("Run time: " + runTime);
-
 	} catch (IOException e) {
 	    System.err.println("Solution could not be written in Solution.writeSolution(...).");
 	    e.printStackTrace();

@@ -34,6 +34,12 @@ import ilog.concert.IloNumVar;
  */
 public class Utils {
 
+    /**
+     * Concatenates a matrix of decision variables into a vector.
+     * 
+     * @param var the matrix to be concatenated
+     * @return the concatenated vector
+     */
     static IloNumVar[] concatenate(IloNumVar[][] var) {
 	IloNumVar[] result = new IloNumVar[var.length * var[0].length];
 	for (int i = 0; i < var.length; i++) {
@@ -44,6 +50,13 @@ public class Utils {
 	return result;
     }
 
+    /**
+     * Concatenates two matrices of decision variables into a single vector.
+     * 
+     * @param var1 the first matrix to be concatenated
+     * @param var2 the second matrix to be concatenated
+     * @return the concatenated vector
+     */
     static IloNumVar[] concatenate(IloNumVar[][] var1, IloNumVar[][] var2) {
 	IloNumVar[] concat1 = concatenate(var1);
 	IloNumVar[] concat2 = concatenate(var2);
@@ -58,6 +71,14 @@ public class Utils {
 	return result;
     }
 
+    /**
+     * Concatenates three matrices of decision variables into a single vector.
+     * 
+     * @param var1 the first matrix to be concatenated
+     * @param var2 the second matrix to be concatenated
+     * @param var3 the third matrix to be concatenated
+     * @return the concatenated vector
+     */
     static IloNumVar[] concatenate(IloNumVar[][] var1, IloNumVar[][] var2, IloNumVar[][] var3) {
 	IloNumVar[] oneTwo = concatenate(var1, var2);
 	IloNumVar[] three = concatenate(var3);
@@ -72,6 +93,12 @@ public class Utils {
 	return result;
     }
 
+    /**
+     * Gets the transpose of a matrix of decision variables.
+     * 
+     * @param var the matrix to be transposed
+     * @return the transposed matrix
+     */
     static IloIntVar[][] getTranspose(IloIntVar[][] var) {
 	IloIntVar[][] transpose = new IloIntVar[var[0].length][var.length];
 	for (int i = 0; i < var.length; i++) {
@@ -82,6 +109,12 @@ public class Utils {
 	return transpose;
     }
 
+    /**
+     * Gets the transpose of a matrix of decision variables.
+     * 
+     * @param var the matrix to be transposed
+     * @return the transposed matrix
+     */
     static IloNumVar[][] getTranspose(IloNumVar[][] var) {
 	IloNumVar[][] transpose = new IloNumVar[var[0].length][var.length];
 	for (int i = 0; i < var.length; i++) {

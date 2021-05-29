@@ -40,6 +40,13 @@ import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
 import ilog.cplex.IloCplex.ParameterSet;
 
+/**
+ * The Main class provides the main execution environment, and contains methods
+ * for the optimization-based heuristic approach.
+ *
+ * @author Stefan van Berkum
+ *
+ */
 public class Main {
 
     /** The number of shelves to be selected for each re-optimization run. */
@@ -58,8 +65,11 @@ public class Main {
     private static int STOP_LOOPS = 1;
 
     /** The time limit in seconds required for termination. */
-    private static int STOP_TIME = 3600;
+    private static int STOP_TIME = 7200;
 
+    /**
+     * Creates the directories for the result files.
+     */
     public static void createDirectories() {
 	try {
 	    Files.createDirectories(Paths.get("Results/APSA/"));
@@ -72,18 +82,38 @@ public class Main {
 	}
     }
 
+    /**
+     * Runs the specified methods.
+     * 
+     * @param args no arguments required
+     */
     public static void main(String[] args) {
-	System.out.println("Simulating the first store...");
+	System.out.println("Simulating a store with 50 shelves and 400 products...");
 	Store store = (new StoreSimulator(400, 50, 0)).simulate();
-	solveAPSA(store);
+
+	long startTime = System.currentTimeMillis() / 1000;
+	Solution apsa = solveAPSA(store);
+	long endTime = System.currentTimeMillis() / 1000;
+	apsa.writeSolution("Results/APSA/50_400.txt", endTime - startTime);
 
 	double[] gammas = new double[] { 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10 };
 	for (double gamma : gammas) {
-	    solveHAPSA(store, gamma, 0);
+	    startTime = System.currentTimeMillis() / 1000;
+	    Solution hapsa = solveHAPSA(store, gamma, 0);
+	    endTime = System.currentTimeMillis() / 1000;
+	    hapsa.writeSolution("Results/HAPSA/50_400_" + gamma + "_0.txt", endTime - startTime);
 	}
-
     }
 
+    /**
+     * Solves the model using the optimization-based heuristic approach for
+     * objective functions of type: AVA, HLUR, or VIS.
+     * 
+     * @param store the store to be considered
+     * @param obj   the objective function type, one of: AVA, HLUR, or VIS
+     * @param param the parameter that corresponds to the objective function type
+     * @return the solution
+     */
     public static Solution solve(Store store, SSP.Objective obj, double param) {
 	Solution solution = initialize(store, obj, param);
 	switch (obj) {
@@ -96,16 +126,44 @@ public class Main {
 	}
     }
 
+    /**
+     * Solves the model using the optimization-based heuristic approach for the
+     * objective function type APSA.
+     * 
+     * @param store the store to be considered
+     * @return the solution
+     */
     public static Solution solveAPSA(Store store) {
 	Solution solution = initializeAPSA(store);
 	return reOptimizeAPSA(solution, store);
     }
 
+    /**
+     * Solves the model using the optimization-based heuristic approach for the
+     * objective function type HAPSA.
+     * 
+     * @param store the store to be considered
+     * @param gamma the gamma parameter for the visibility penalty
+     * @param theta the theta parameter for the healthy-left, unhealthy-right
+     *              approach
+     * @return the solution
+     */
     public static Solution solveHAPSA(Store store, double gamma, double theta) {
 	Solution solution = initializeHAPSA(store, gamma, theta);
 	return reOptimizeHAPSA(solution, store, gamma, theta);
     }
 
+    /**
+     * Initializes the model by optimizing each shelf separately using the SSP(i*)
+     * model, for objective functions of type: AVA, HLUR, or VIS.
+     * 
+     * @param store the store to be considered
+     * @param obj   the objective function type, one of: AVA, HLUR, or VIS
+     * @param param the parameter that corresponds to the objective function type
+     * @return the solution
+     * @throws IllegalStateException when the algorithm cannot find a feasible
+     *                               solution for a shelf
+     */
     private static Solution initialize(Store store, SSP.Objective obj, double param) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
@@ -209,6 +267,15 @@ public class Main {
 	return result;
     }
 
+    /**
+     * Initializes the model by optimizing each shelf separately using the SSP(i*)
+     * model, for the objective function of type APSA.
+     * 
+     * @param store the store to be considered
+     * @return the solution
+     * @throws IllegalStateException when the algorithm cannot find a feasible
+     *                               solution for a shelf
+     */
     private static Solution initializeAPSA(Store store) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
@@ -301,6 +368,18 @@ public class Main {
 	return result;
     }
 
+    /**
+     * Initializes the model by optimizing each shelf separately using the SSP(i*)
+     * model, for the objective function of type HAPSA.
+     * 
+     * @param store the store to be considered
+     * @param gamma the gamma parameter for the visibility penalty
+     * @param theta the theta parameter for the healthy-left, unhealthy-right
+     *              approach
+     * @return the solution
+     * @throws IllegalStateException when the algorithm cannot find a feasible
+     *                               solution for a shelf
+     */
     private static Solution initializeHAPSA(Store store, double gamma, double theta) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
@@ -395,6 +474,16 @@ public class Main {
 	return result;
     }
 
+    /**
+     * Re-optimizes the shelves iteratively by means of the MIP-based
+     * re-optimization procedure, for objective function types: AVA, HLUR, or VIS.
+     * 
+     * @param init  the initial solution provided by the initialization procedure
+     * @param store the store to be considered
+     * @param obj   the objective function type, one of: AVA, HLUR, or VIS
+     * @param param the parameter that corresponds to the objective function type
+     * @return the solution
+     */
     private static Solution reOptimize(Solution init, Store store, HAPSA.Objective obj, double param) {
 	System.out.println("Initiating " + obj + " re-optimization procedure...");
 	int ni = store.getShelves().size();
@@ -431,6 +520,7 @@ public class Main {
 	}
 
 	Solution incumbent = init;
+	incumbent.setUpperBound(upperBound);
 	Solution.Objective solObj;
 	switch (obj) {
 	case AVA:
@@ -446,6 +536,13 @@ public class Main {
 	double objective = incumbent.updateObjective(solObj, param);
 	System.out.println("Objective = " + objective);
 
+	/**
+	 * The ObjectiveComparator class compares shelves based on their current
+	 * objective value contribution.
+	 *
+	 * @author Stefan van Berkum
+	 *
+	 */
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
@@ -458,7 +555,8 @@ public class Main {
 	int loops = 0;
 	long startTime = System.currentTimeMillis() / 1000;
 	long time = System.currentTimeMillis() / 1000;
-	while (((upperBound - objective) / upperBound <= STOP_GAP) && (loops < STOP_LOOPS)
+
+	while (((upperBound - objective) / upperBound > STOP_GAP) && (loops < STOP_LOOPS)
 		&& (time - startTime < STOP_TIME)) {
 	    TreeSet<Shelf> shelves = new TreeSet<Shelf>(new ObjectiveComparator());
 	    shelves.addAll(store.getShelves());
@@ -521,6 +619,7 @@ public class Main {
 
 		    System.out.println("Feasible solution found! Type: " + model.getStatus() + "\n");
 
+		    // Collect partial results and update incumbent solution.
 		    int[] shelfIndices = new int[N_REOPT];
 		    int nseg = partialStore.getSegments().size();
 		    int npr = partialStore.getProducts().size();
@@ -554,10 +653,26 @@ public class Main {
 		}
 	    }
 	    time = System.currentTimeMillis() / 1000;
+	    System.out.println("Elapsed time re-optimization: " + (time - startTime) + " seconds");
+	}
+	if ((upperBound - objective) / upperBound <= STOP_GAP) {
+	    incumbent.setTerminationReason(Solution.Termination.GAP);
+	} else if (loops >= STOP_LOOPS) {
+	    incumbent.setTerminationReason(Solution.Termination.LOOP);
+	} else {
+	    incumbent.setTerminationReason(Solution.Termination.TIME);
 	}
 	return incumbent;
     }
 
+    /**
+     * Re-optimizes the shelves iteratively by means of the MIP-based
+     * re-optimization procedure, for the objective function type APSA.
+     * 
+     * @param init  the initial solution provided by the initialization procedure
+     * @param store the store to be considered
+     * @return the solution
+     */
     private static Solution reOptimizeAPSA(Solution init, Store store) {
 	System.out.println("Initiating APSA re-optimization procedure...");
 	int ni = store.getShelves().size();
@@ -575,28 +690,6 @@ public class Main {
 		throw new IllegalStateException("No feasible upper bound found.");
 	    }
 	    upperBound = continuous.getObjValue();
-	    // TODO: checker
-	    double[][] cS = new double[store.getSegments().size()][store.getProducts().size()];
-	    double[][] cX = new double[store.getShelves().size()][store.getProducts().size()];
-	    double[][] cY = new double[store.getSegments().size()][store.getProducts().size()];
-	    double[] sumS = new double[store.getSegments().size()];
-	    double[] sumX = new double[store.getShelves().size()];
-	    double[] sumY = new double[store.getSegments().size()];
-
-	    for (int i = 0; i < store.getShelves().size(); i++) {
-		cX[i] = continuous.getValues(continuous.getX()[i]);
-		for (int j = 0; j < store.getProducts().size(); j++) {
-		    sumX[i] += cX[i][j];
-		}
-	    }
-	    for (int k = 0; k < store.getSegments().size(); k++) {
-		cS[k] = continuous.getValues(continuous.getS()[k]);
-		cY[k] = continuous.getValues(continuous.getY()[k]);
-		for (int j = 0; j < store.getProducts().size(); j++) {
-		    sumS[k] += cS[k][j];
-		    sumY[k] += cY[k][j];
-		}
-	    }
 	    System.out.println("Upper bound: " + upperBound + " (" + continuous.getStatus() + ")");
 	} catch (IloException e) {
 	    System.out.println("Continuous relaxation could not be solved in Main.reOptimize(...).");
@@ -605,9 +698,17 @@ public class Main {
 	}
 
 	Solution incumbent = init;
-	double objective = incumbent.getObjectiveAPSA();
+	incumbent.setUpperBound(upperBound);
+	double objective = incumbent.updateObjectiveAPSA();
 	System.out.println("Objective = " + objective);
 
+	/**
+	 * The ObjectiveComparator class compares shelves based on their current
+	 * objective value contribution.
+	 *
+	 * @author Stefan van Berkum
+	 *
+	 */
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
@@ -620,29 +721,11 @@ public class Main {
 	double loops = 0;
 	long startTime = System.currentTimeMillis() / 1000;
 	long time = System.currentTimeMillis() / 1000;
+
 	while (((upperBound - objective) / upperBound > STOP_GAP) && (loops < STOP_LOOPS)
 		&& (time - startTime < STOP_TIME)) {
 	    TreeSet<Shelf> shelves = new TreeSet<Shelf>(new ObjectiveComparator());
 	    shelves.addAll(store.getShelves());
-
-	    // TODO: checker
-	    ArrayList<Double> objectives = new ArrayList<Double>(shelves.size());
-	    for (Shelf shelf : shelves) {
-		objectives.add(incumbent.getShelfObjectiveAPSA(shelf));
-	    }
-	    double[] incS = new double[incumbent.getS().length];
-	    double[] incX = new double[incumbent.getX().length];
-	    double[] incY = new double[incumbent.getY().length];
-
-	    for (int j = 0; j < incumbent.getS()[0].length; j++) {
-		for (int i = 0; i < incX.length; i++) {
-		    incX[i] += incumbent.getX()[i][j];
-		}
-		for (int k = 0; k < incS.length; k++) {
-		    incS[k] += incumbent.getS()[k][j];
-		    incY[k] += incumbent.getY()[k][j];
-		}
-	    }
 
 	    while (shelves.size() > store.getShelves().size() % N_REOPT) {
 		int nPerLevel = shelves.size() / N_REOPT;
@@ -673,12 +756,6 @@ public class Main {
 		}
 		shelves.removeAll(selected);
 
-		// TODO: checker
-		ArrayList<Double> selectedObjectives = new ArrayList<Double>(selected.size());
-		for (Shelf shelf : selected) {
-		    selectedObjectives.add(incumbent.getShelfObjectiveAPSA(shelf));
-		}
-
 		ArrayList<Integer> consideredProducts = incumbent.getConsidered(selected);
 		Store partialStore = incumbent.partialStore(selected, consideredProducts);
 		try (HAPSA model = new HAPSA(partialStore)) {
@@ -698,6 +775,7 @@ public class Main {
 
 		    System.out.println("Feasible solution found! Type: " + model.getStatus() + "\n");
 
+		    // Collect partial results and update incumbent solution.
 		    int[] shelfIndices = new int[N_REOPT];
 		    int nseg = partialStore.getSegments().size();
 		    int npr = partialStore.getProducts().size();
@@ -715,14 +793,8 @@ public class Main {
 			partialY[k] = model.getValues(model.getY()[k]);
 		    }
 
-		    double partialObj = model.getObjValue();
 		    incumbent.updatePartial(shelfIndices, consideredProducts, partialS, partialX, partialY);
-		    double partialObj2 = 0;
-		    for (Shelf shelf : selected) {
-			double shelfobj = incumbent.getShelfObjectiveAPSA(shelf);
-			partialObj2 += incumbent.getShelfObjectiveAPSA(shelf);
-		    }
-		    double newObjective = incumbent.getObjectiveAPSA();
+		    double newObjective = incumbent.updateObjectiveAPSA();
 		    if (newObjective <= objective) {
 			loops += N_REOPT / store.getShelves().size();
 		    } else {
@@ -737,11 +809,29 @@ public class Main {
 		}
 	    }
 	    time = System.currentTimeMillis() / 1000;
-	    System.out.println("Elapsed time algorithm: " + (time - startTime) + " seconds");
+	    System.out.println("Elapsed time re-optimization: " + (time - startTime) + " seconds");
+	}
+	if ((upperBound - objective) / upperBound <= STOP_GAP) {
+	    incumbent.setTerminationReason(Solution.Termination.GAP);
+	} else if (loops >= STOP_LOOPS) {
+	    incumbent.setTerminationReason(Solution.Termination.LOOP);
+	} else {
+	    incumbent.setTerminationReason(Solution.Termination.TIME);
 	}
 	return incumbent;
     }
 
+    /**
+     * Re-optimizes the shelves iteratively by means of the MIP-based
+     * re-optimization procedure, for the objective function type APSA.
+     * 
+     * @param init  the initial solution provided by the initialization procedure
+     * @param store the store to be considered
+     * @param gamma the gamma parameter for the visibility penalty
+     * @param theta the theta parameter for the healthy-left, unhealthy-right
+     *              approach
+     * @return the solution
+     */
     private static Solution reOptimizeHAPSA(Solution init, Store store, double gamma, double theta) {
 	System.out.println("Initiating HAPSA re-optimization procedure...");
 	int ni = store.getShelves().size();
@@ -769,9 +859,17 @@ public class Main {
 	}
 
 	Solution incumbent = init;
-	double objective = incumbent.getObjectiveHAPSA(gamma, theta);
+	incumbent.setUpperBound(upperBound);
+	double objective = incumbent.updateObjectiveHAPSA(gamma, theta);
 	System.out.println("Objective = " + objective);
 
+	/**
+	 * The ObjectiveComparator class compares shelves based on their current
+	 * objective value contribution.
+	 *
+	 * @author Stefan van Berkum
+	 *
+	 */
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
@@ -784,7 +882,8 @@ public class Main {
 	int loops = 0;
 	long startTime = System.currentTimeMillis() / 1000;
 	long time = System.currentTimeMillis() / 1000;
-	while (((upperBound - objective) / upperBound <= STOP_GAP) && (loops < STOP_LOOPS)
+
+	while (((upperBound - objective) / upperBound > STOP_GAP) && (loops < STOP_LOOPS)
 		&& (time - startTime < STOP_TIME)) {
 	    TreeSet<Shelf> shelves = new TreeSet<Shelf>(new ObjectiveComparator());
 	    shelves.addAll(store.getShelves());
@@ -838,6 +937,7 @@ public class Main {
 
 		    System.out.println("Feasible solution found! Type: " + model.getStatus() + "\n");
 
+		    // Collect partial results and update incumbent solution.
 		    int[] shelfIndices = new int[N_REOPT];
 		    int nseg = partialStore.getSegments().size();
 		    int npr = partialStore.getProducts().size();
@@ -856,7 +956,7 @@ public class Main {
 		    }
 
 		    incumbent.updatePartial(shelfIndices, consideredProducts, partialS, partialX, partialY);
-		    double newObjective = incumbent.getObjectiveHAPSA(gamma, theta);
+		    double newObjective = incumbent.updateObjectiveHAPSA(gamma, theta);
 		    if (newObjective <= objective) {
 			loops += N_REOPT / store.getShelves().size();
 		    } else {
@@ -871,9 +971,15 @@ public class Main {
 		}
 	    }
 	    time = System.currentTimeMillis() / 1000;
+	    System.out.println("Elapsed time re-optimization: " + (time - startTime) + " seconds");
 	}
-	String fileName = "Results/HAPSA/gamma_" + gamma + "_theta_" + theta;
-	incumbent.writeSolution(fileName, objective, upperBound, loops)
+	if ((upperBound - objective) / upperBound <= STOP_GAP) {
+	    incumbent.setTerminationReason(Solution.Termination.GAP);
+	} else if (loops >= STOP_LOOPS) {
+	    incumbent.setTerminationReason(Solution.Termination.LOOP);
+	} else {
+	    incumbent.setTerminationReason(Solution.Termination.TIME);
+	}
 	return incumbent;
     }
 }

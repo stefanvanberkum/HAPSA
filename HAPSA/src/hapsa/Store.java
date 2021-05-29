@@ -59,6 +59,21 @@ public class Store {
      */
     private HashSet<SymmetricPair> symmetricAssortment;
 
+    /**
+     * Constructs a store.
+     * 
+     * @param products              the set of products considered in this store
+     * @param shelves               the set of shelves in this store
+     * @param segments              the set segments in this store
+     * @param allocationAffinity    the set of product pairs that have allocation
+     *                              affinity
+     * @param allocationDisaffinity the set of product pairs that have allocation
+     *                              disaffinity
+     * @param asymmetricAssortment  the set of product pairs that have asymmetric
+     *                              assortment affinity
+     * @param symmetricAssortment   set of product pairs that have symmetric
+     *                              assortment affinity
+     */
     public Store(ArrayList<Product> products, ArrayList<Shelf> shelves, ArrayList<Segment> segments,
 	    HashSet<SymmetricPair> allocationAffinity, HashSet<SymmetricPair> allocationDisaffinity,
 	    HashSet<AsymmetricPair> asymmetricAssortment, HashSet<SymmetricPair> symmetricAssortment) {

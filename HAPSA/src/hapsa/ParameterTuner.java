@@ -40,11 +40,28 @@ import ilog.concert.IloNumVar;
 import ilog.cplex.IloCplex;
 import ilog.cplex.IloCplex.ParameterSet;
 
+/**
+ * The ParamterTuner class provides methods to tune the CPLEX parameters for the
+ * optimization-based heuristic approach to shelf space planning. The optimal
+ * parameters are determined for the first iteration of the initialization
+ * procedure, the continuous relaxation, and the first iteration of the
+ * re-optimization procedure. The results are saved to a file and automatically
+ * loaded into the {@link Main} class.
+ *
+ * NOTE. Re-running the parameter tuning overwrites the previous parameter
+ * tuning files.
+ *
+ * @author Stefan van Berkum
+ *
+ */
 public class ParameterTuner {
 
     /** The number of shelves to be selected for each re-optimization run. */
     private static int N_REOPT = 4;
 
+    /**
+     * Creates the directories for the parameter optimization result files.
+     */
     public static void createDirectories() {
 	try {
 	    Files.createDirectories(Paths.get("Parameters/SSP/"));
@@ -55,19 +72,30 @@ public class ParameterTuner {
 	}
     }
 
+    /**
+     * Runs the parameter tuning.
+     * 
+     * @param args no arguments required
+     */
     public static void main(String[] args) {
 	System.out.println("Creating directories...");
 	createDirectories();
 	System.out.println("Simulating the first store...");
-	Store store1 = (new StoreSimulator(240, 30, 1)).simulate();
+	Store store1 = (new StoreSimulator(400, 50, 1)).simulate();
+	System.out.println("Tuning APSA...");
+	tuneAPSA(store1);
+	System.out.println("Tuning HAPSA...");
 	tuneHAPSA(store1, 0.01, 0.01);
-
-	// Store store2 = (new StoreSimulator(320, 40, 2)).simulate();
-	// Store store3 = (new StoreSimulator(400, 50, 3)).simulate();
-	// Store store4 = (new StoreSimulator(480, 60, 4)).simulate();
-	// Store store5 = (new StoreSimulator(800, 100, 5)).simulate();
     }
 
+    /**
+     * Tunes the CPLEX parameters for objective functions of type: AVA, HLUR, or
+     * VIS.
+     * 
+     * @param store the store to be considered
+     * @param obj   the objective function type, one of: AVA, HLUR, or VIS
+     * @param param the parameter that corresponds to the objective function type
+     */
     public static void tune(Store store, SSP.Objective obj, double param) {
 	Solution solution = initialize(store, obj, param);
 	switch (obj) {
@@ -80,16 +108,42 @@ public class ParameterTuner {
 	}
     }
 
+    /**
+     * Tunes the CPLEX parameters for the objective function type APSA.
+     * 
+     * @param store the store to be considered
+     */
     public static void tuneAPSA(Store store) {
 	Solution solution = initializeAPSA(store);
 	tuneReOptAPSA(solution, store);
     }
 
+    /**
+     * Tunes the CPLEX parameters for the objective function type HAPSA.
+     * 
+     * @param store the store to be considered
+     * @param gamma the gamma parameter for the visibility penalty
+     * @param theta the theta parameter for the healthy-left, unhealthy-right
+     *              approach
+     */
     public static void tuneHAPSA(Store store, double gamma, double theta) {
 	Solution solution = initializeHAPSA(store, gamma, theta);
 	tuneReOptHAPSA(solution, store, gamma, theta);
     }
 
+    /**
+     * Initializes the model by optimizing each shelf separately using the SSP(i*)
+     * model, for objective functions of type: AVA, HLUR, or VIS. Additionally, this
+     * method tunes the CPLEX parameters for the first iteration and saves the
+     * results to a file.
+     * 
+     * @param store the store to be considered
+     * @param obj   the objective function type, one of: AVA, HLUR, or VIS
+     * @param param the parameter that corresponds to the objective function type
+     * @return the solution
+     * @throws IllegalStateException when the algorithm cannot find a feasible
+     *                               solution for a shelf
+     */
     private static Solution initialize(Store store, SSP.Objective obj, double param) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
@@ -202,6 +256,17 @@ public class ParameterTuner {
 	return result;
     }
 
+    /**
+     * Initializes the model by optimizing each shelf separately using the SSP(i*)
+     * model, for the objective function of type APSA. Additionally, this method
+     * tunes the CPLEX parameters for the first iteration and saves the results to a
+     * file.
+     * 
+     * @param store the store to be considered
+     * @return the solution
+     * @throws IllegalStateException when the algorithm cannot find a feasible
+     *                               solution for a shelf
+     */
     private static Solution initializeAPSA(Store store) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
@@ -303,6 +368,20 @@ public class ParameterTuner {
 	return result;
     }
 
+    /**
+     * Initializes the model by optimizing each shelf separately using the SSP(i*)
+     * model, for the objective function of type HAPSA. Additionally, this method
+     * tunes the CPLEX parameters for the first iteration and saves the results to a
+     * file.
+     * 
+     * @param store the store to be considered
+     * @param gamma the gamma parameter for the visibility penalty
+     * @param theta the theta parameter for the healthy-left, unhealthy-right
+     *              approach
+     * @return the solution
+     * @throws IllegalStateException when the algorithm cannot find a feasible
+     *                               solution for a shelf
+     */
     private static Solution initializeHAPSA(Store store, double gamma, double theta) throws IllegalStateException {
 	ArrayList<Shelf> sortedShelves = new ArrayList<Shelf>(store.getShelves());
 	Collections.sort(sortedShelves);
@@ -406,6 +485,18 @@ public class ParameterTuner {
 	return result;
     }
 
+    /**
+     * Tunes the CPLEX parameters for the MIP-based re-optimization procedure, for
+     * objective function types: AVA, HLUR, or VIS. The parameters are tuned for the
+     * continuous relaxation and for the first iteration of the re-optimization
+     * procedure, and the results are saved to a file.
+     * 
+     * @param init  the initial solution provided by the initialization procedure
+     * @param store the store to be considered
+     * @param obj   the objective function type, one of: AVA, HLUR, or VIS
+     * @param param the parameter that corresponds to the objective function type
+     * @return the solution
+     */
     private static void tuneReOpt(Solution init, Store store, HAPSA.Objective obj, double param) {
 	System.out.println("Initiating " + obj + " re-optimization tuning...");
 	int ni = store.getShelves().size();
@@ -453,6 +544,13 @@ public class ParameterTuner {
 	double objective = incumbent.updateObjective(solObj, param);
 	System.out.println("Objective = " + objective);
 
+	/**
+	 * The ObjectiveComparator class compares shelves based on their current
+	 * objective value contribution.
+	 *
+	 * @author Stefan van Berkum
+	 *
+	 */
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
@@ -523,6 +621,16 @@ public class ParameterTuner {
 	}
     }
 
+    /**
+     * Tunes the CPLEX parameters for the MIP-based re-optimization procedure, for
+     * the objective function type APSA. The parameters are tuned for the continuous
+     * relaxation and for the first iteration of the re-optimization procedure, and
+     * the results are saved to a file.
+     * 
+     * @param init  the initial solution provided by the initialization procedure
+     * @param store the store to be considered
+     * @return the solution
+     */
     private static void tuneReOptAPSA(Solution init, Store store) {
 	System.out.println("Initiating APSA re-optimization tuning...");
 	int ni = store.getShelves().size();
@@ -547,6 +655,13 @@ public class ParameterTuner {
 	double objective = incumbent.updateObjectiveAPSA();
 	System.out.println("Objective = " + objective);
 
+	/**
+	 * The ObjectiveComparator class compares shelves based on their current
+	 * objective value contribution.
+	 *
+	 * @author Stefan van Berkum
+	 *
+	 */
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
@@ -606,6 +721,19 @@ public class ParameterTuner {
 	}
     }
 
+    /**
+     * Tunes the CPLEX parameters for the MIP-based re-optimization procedure, for
+     * the objective function type APSA. The parameters are tuned for the continuous
+     * relaxation and for the first iteration of the re-optimization procedure, and
+     * the results are saved to a file.
+     * 
+     * @param init  the initial solution provided by the initialization procedure
+     * @param store the store to be considered
+     * @param gamma the gamma parameter for the visibility penalty
+     * @param theta the theta parameter for the healthy-left, unhealthy-right
+     *              approach
+     * @return the solution
+     */
     private static void tuneReOptHAPSA(Solution init, Store store, double gamma, double theta) {
 	System.out.println("Initiating HAPSA re-optimization tuning...");
 	int ni = store.getShelves().size();
@@ -632,6 +760,13 @@ public class ParameterTuner {
 	double objective = incumbent.updateObjectiveHAPSA(gamma, theta);
 	System.out.println("Objective = " + objective);
 
+	/**
+	 * The ObjectiveComparator class compares shelves based on their current
+	 * objective value contribution.
+	 *
+	 * @author Stefan van Berkum
+	 *
+	 */
 	class ObjectiveComparator implements Comparator<Shelf> {
 	    @Override
 	    public int compare(Shelf shelf1, Shelf shelf2) {
