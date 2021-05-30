@@ -734,7 +734,7 @@ public class HAPSA extends Model {
 
 			    // Healthy-left, unhealthy-right approach.
 			    double thetah = this.theta * product.getHealthScore();
-			    minuend = this.sum(minuend, this.prod(thetah, this.y[startK + k][j]));
+			    minuend = this.sum(minuend, this.prod(thetah, this.s[startK + k][j]));
 			    break;
 			case HLUR:
 			    if (this.theta == null) {
@@ -742,7 +742,7 @@ public class HAPSA extends Model {
 			    }
 
 			    double thetah2 = this.theta * product.getHealthScore();
-			    minuend = this.sum(minuend, this.prod(thetah2, this.y[startK + k][j]));
+			    minuend = this.sum(minuend, this.prod(thetah2, this.s[startK + k][j]));
 			    break;
 			case VIS:
 			    if (this.gamma == null) {
@@ -757,7 +757,7 @@ public class HAPSA extends Model {
 			}
 		    }
 		    if (obj == Objective.HAPSA || obj == Objective.HLUR) {
-			IloIntExpr sumsumy2h2 = this.constant(0);
+			IloNumExpr sumsums2h2 = this.constant(0);
 			int nh = shelf.getHorizontal();
 
 			if ((k + 1) % nh != 0) {
@@ -768,12 +768,12 @@ public class HAPSA extends Model {
 
 				for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 				    Product product2 = this.store.getProducts().get(j2);
-				    IloIntExpr y2h2 = this.prod(this.y[startK + k2][j2], product2.getHealthScore());
-				    sumsumy2h2 = this.sum(sumsumy2h2, y2h2);
+				    IloNumExpr s2h2 = this.prod(this.s[startK + k2][j2], product2.getHealthScore());
+				    sumsums2h2 = this.sum(sumsums2h2, s2h2);
 				}
 			    }
-			    IloNumExpr thetasumsumy2h2 = this.prod(this.theta, sumsumy2h2);
-			    subtrahend = this.sum(subtrahend, thetasumsumy2h2);
+			    IloNumExpr thetasumsums2h2 = this.prod(this.theta, sumsums2h2);
+			    subtrahend = this.sum(subtrahend, thetasumsums2h2);
 			}
 		    }
 		}

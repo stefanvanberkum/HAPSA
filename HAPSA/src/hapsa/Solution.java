@@ -541,7 +541,7 @@ public class Solution {
 			objective -= param * this.y[startK + k][j] / product.getHealthScore();
 			break;
 		    case HLUR:
-			objective += param * this.y[startK + k][j] * product.getHealthScore();
+			objective += param * this.s[startK + k][j] * product.getHealthScore();
 			break;
 		    default:
 			objective -= param / product.getHealthScore() * fsc;
@@ -557,7 +557,7 @@ public class Solution {
 
 			    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 				Product product2 = this.store.getProducts().get(j2);
-				objective -= param * this.y[startK + k2][j2] * product2.getHealthScore();
+				objective -= param * this.s[startK + k2][j2] * product2.getHealthScore();
 			    }
 			}
 		    }
@@ -618,7 +618,7 @@ public class Solution {
 		    objective -= gamma / product.getHealthScore() * fsc;
 
 		    // Healthy-left, unhealthy-right approach.
-		    objective += theta * this.y[startK + k][j] * product.getHealthScore();
+		    objective += theta * this.s[startK + k][j] * product.getHealthScore();
 		}
 		if ((k + 1) % nh != 0) {
 		    // Shelf segment k is not the rightmost segment.
@@ -628,7 +628,7 @@ public class Solution {
 
 			for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 			    Product product2 = this.store.getProducts().get(j2);
-			    objective -= theta * this.y[startK + k2][j2] * product2.getHealthScore();
+			    objective -= theta * this.s[startK + k2][j2] * product2.getHealthScore();
 			}
 		    }
 		}

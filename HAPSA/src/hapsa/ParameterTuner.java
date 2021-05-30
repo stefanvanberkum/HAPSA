@@ -80,12 +80,12 @@ public class ParameterTuner {
     public static void main(String[] args) {
 	System.out.println("Creating directories...");
 	createDirectories();
-	System.out.println("Simulating the first store...");
-	Store store1 = (new StoreSimulator(400, 50, 1)).simulate();
+	System.out.println("Simulating a store with 50 shelves and 400 products...");
+	Store store = (new StoreSimulator(400, 50, 0)).simulate();
 	System.out.println("Tuning APSA...");
-	tuneAPSA(store1);
+	tuneAPSA(store);
 	System.out.println("Tuning HAPSA...");
-	tuneHAPSA(store1, 0.01, 0.01);
+	tuneHAPSA(store, 0.01, 0.01);
     }
 
     /**
@@ -590,8 +590,6 @@ public class ParameterTuner {
 
 	    // Collect tuning information for the re-optimization run.
 	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
-	    double maxTime = 0.000015 * Math.pow((ni + nj), 2.8082);
-	    model.setParam(IloCplex.Param.TimeLimit, maxTime);
 	    model.tuneParam();
 	    ParameterSet params = model.getParameterSet();
 	    model.writeParameterSet(params, "Parameters/HAPSA/" + obj + "_" + ni + "_" + nj);
@@ -690,8 +688,6 @@ public class ParameterTuner {
 
 	    // Collect tuning information for the re-optimization run.
 	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
-	    double maxTime = 0.000015 * Math.pow((ni + nj), 2.8082);
-	    model.setParam(IloCplex.Param.TimeLimit, maxTime);
 	    model.tuneParam();
 	    ParameterSet params = model.getParameterSet();
 	    model.writeParameterSet(params, "Parameters/HAPSA/APSA_" + ni + "_" + nj);
@@ -797,8 +793,6 @@ public class ParameterTuner {
 
 	    // Collect tuning information for the re-optimization run.
 	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
-	    double maxTime = 0.000015 * Math.pow((ni + nj), 2.8082);
-	    model.setParam(IloCplex.Param.TimeLimit, maxTime);
 	    model.tuneParam();
 	    ParameterSet params = model.getParameterSet();
 	    model.writeParameterSet(params, "Parameters/HAPSA/HAPSA_" + ni + "_" + nj);

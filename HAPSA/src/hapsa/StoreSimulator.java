@@ -38,8 +38,8 @@ public class StoreSimulator {
     /** The capacity of each shelf segment. */
     private static double CAPACITY = 1;
 
-    /** The horizontal attractiveness bonus for end-of-aisle segments. */
-    private static double[] END_SEG = new double[] { 0.06, 0.1 };
+    /** The horizontal attractiveness bonus for end-of-shelf segments. */
+    private static double[] END_SEG = new double[] { 0.0, 0.05 };
 
     /** The lower bound for the randomly generated health score for each product. */
     private static double HEALTH_SCORE_LB = 1;
@@ -71,7 +71,7 @@ public class StoreSimulator {
     private static double MAX_SPACE_UB = 6;
 
     /** The horizontal attractiveness bonus for middle segments. */
-    private static double[] MIDDLE_SEG = new double[] { 0.0, 0.05 };
+    private static double[] MIDDLE_SEG = new double[] { 0.06, 0.1 };
 
     /** The minimum allocated space for each product (if selected). */
     private static double MIN_ALLOCATED = 0.1;
@@ -260,10 +260,10 @@ public class StoreSimulator {
     private Segment simulateSegment(double base_attr, int h_pos, int v_pos) {
 	double h_attr;
 	if (h_pos == 0 || h_pos == HORIZONTAL) {
-	    // End-of-aisle shelf segment.
+	    // End-of-shelf segment.
 	    h_attr = base_attr + (END_SEG[0] + (END_SEG[1] - END_SEG[0]) * this.rand.nextDouble());
 	} else {
-	    // Middle shelf segment.
+	    // Middle segment.
 	    h_attr = base_attr + (MIDDLE_SEG[0] + (MIDDLE_SEG[1] - MIDDLE_SEG[0]) * this.rand.nextDouble());
 	}
 	double v_attr = VERTICAL_CAT[v_pos];
