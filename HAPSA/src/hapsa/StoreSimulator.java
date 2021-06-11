@@ -235,11 +235,8 @@ public class StoreSimulator {
 	double maxProfit = Math.round(100.0 * randMaxProfit) / 100.0;
 	double randMinSpace = MIN_SPACE_LB + (MIN_SPACE_UB - MIN_SPACE_LB) * this.rand.nextDouble();
 	int minSpace = Math.toIntExact(Math.round(randMinSpace));
-	int maxSpace = minSpace;
-	while (maxSpace == minSpace) {
-	    double randMaxSpace = minSpace + (MAX_SPACE_UB - minSpace) * this.rand.nextDouble();
-	    maxSpace = Math.toIntExact(Math.round(randMaxSpace));
-	}
+	double randMaxSpace = (minSpace + 1) + (MAX_SPACE_UB - (minSpace + 1)) * this.rand.nextDouble();
+	int maxSpace = Math.toIntExact(Math.round(randMaxSpace));
 	double randHealthScore = HEALTH_SCORE_LB + (HEALTH_SCORE_UB - HEALTH_SCORE_LB) * this.rand.nextDouble();
 	int healthScore = Math.toIntExact(Math.round(randHealthScore));
 	return new Product(false, maxProfit, minSpace, maxSpace, MIN_ALLOCATED, healthScore);
@@ -259,7 +256,7 @@ public class StoreSimulator {
      */
     private Segment simulateSegment(double base_attr, int h_pos, int v_pos) {
 	double h_attr;
-	if (h_pos == 0 || h_pos == HORIZONTAL) {
+	if (h_pos == 0 || h_pos == HORIZONTAL - 1) {
 	    // End-of-shelf segment.
 	    h_attr = base_attr + (END_SEG[0] + (END_SEG[1] - END_SEG[0]) * this.rand.nextDouble());
 	} else {

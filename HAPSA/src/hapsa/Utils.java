@@ -23,6 +23,8 @@
 
 package hapsa;
 
+import java.io.File;
+
 import ilog.concert.IloIntVar;
 import ilog.concert.IloNumVar;
 
@@ -123,5 +125,107 @@ public class Utils {
 	    }
 	}
 	return transpose;
+    }
+
+    /**
+     * Assigns a version number to this run for objective function types: AVA, HLUR,
+     * and VIS.
+     * 
+     * @param obj      the objective function type, one of: AVA, HLUR, or VIS
+     * @param shelves  the number of shelves used for this run
+     * @param products the number of product used for this run
+     * @param param    the parameter associated with the objective function type
+     * @param version  the version number
+     */
+    static void setVersion(Model.Objective obj, int shelves, int products, double param, int version) {
+	String path = "Results/" + obj + "/";
+
+	String pathCSV = path + "/CSV/" + shelves + "_" + products + "_" + param;
+	File oldScoresCSV = new File(pathCSV + "_scores.csv");
+	File newScoresCSV = new File(pathCSV + "_scores_v" + version + ".csv");
+	oldScoresCSV.renameTo(newScoresCSV);
+	File oldShelfCSV = new File(pathCSV + "_shelf.csv");
+	File newShelfCSV = new File(pathCSV + "_shelf_v" + version + ".csv");
+	oldShelfCSV.renameTo(newShelfCSV);
+
+	String pathSummary = path + "/Summary/" + shelves + "_" + products + "_" + param;
+	File oldSummary = new File(pathSummary + ".txt");
+	File newSummary = new File(pathSummary + "_v" + version + ".txt");
+	oldSummary.renameTo(newSummary);
+
+	String[] vars = new String[] { "s", "x", "y" };
+	for (String var : vars) {
+	    String pathVar = path + "/Variables/" + shelves + "_" + products + "_" + param + "_" + var;
+	    File oldVar = new File(pathVar + ".csv");
+	    File newVar = new File(pathVar + "_v" + version + ".csv");
+	    oldVar.renameTo(newVar);
+	}
+    }
+
+    /**
+     * Assigns a version number to this run for objective function type APSA.
+     * 
+     * @param shelves  the number of shelves used for this run
+     * @param products the number of product used for this run
+     * @param version  the version number
+     */
+    static void setVersionAPSA(int shelves, int products, int version) {
+	String path = "Results/HAPSA/";
+
+	String pathCSV = path + "/CSV/" + shelves + "_" + products;
+	File oldScoresCSV = new File(pathCSV + "_scores.csv");
+	File newScoresCSV = new File(pathCSV + "_scores_v" + version + ".csv");
+	oldScoresCSV.renameTo(newScoresCSV);
+	File oldShelfCSV = new File(pathCSV + "_shelf.csv");
+	File newShelfCSV = new File(pathCSV + "_shelf_v" + version + ".csv");
+	oldShelfCSV.renameTo(newShelfCSV);
+
+	String pathSummary = path + "/Summary/" + shelves + "_" + products;
+	File oldSummary = new File(pathSummary + ".txt");
+	File newSummary = new File(pathSummary + "_v" + version + ".txt");
+	oldSummary.renameTo(newSummary);
+
+	String[] vars = new String[] { "s", "x", "y" };
+	for (String var : vars) {
+	    String pathVar = path + "/Variables/" + shelves + "_" + products + "_" + var;
+	    File oldVar = new File(pathVar + ".csv");
+	    File newVar = new File(pathVar + "_v" + version + ".csv");
+	    oldVar.renameTo(newVar);
+	}
+    }
+
+    /**
+     * Assigns a version number to this run for objective function type HAPSA.
+     * 
+     * @param shelves  the number of shelves used for this run
+     * @param products the number of product used for this run
+     * @param gamma    the gamma parameter for the visibility penalty
+     * @param theta    the theta parameter for the healthy-left, unhealthy-right
+     *                 approach
+     * @param version  the version number
+     */
+    static void setVersionHAPSA(int shelves, int products, double gamma, double theta, int version) {
+	String path = "Results/HAPSA/";
+
+	String pathCSV = path + "/CSV/" + shelves + "_" + products + "_" + gamma + "_" + theta;
+	File oldScoresCSV = new File(pathCSV + "_scores.csv");
+	File newScoresCSV = new File(pathCSV + "_scores_v" + version + ".csv");
+	oldScoresCSV.renameTo(newScoresCSV);
+	File oldShelfCSV = new File(pathCSV + "_shelf.csv");
+	File newShelfCSV = new File(pathCSV + "_shelf_v" + version + ".csv");
+	oldShelfCSV.renameTo(newShelfCSV);
+
+	String pathSummary = path + "/Summary/" + shelves + "_" + products + "_" + gamma + "_" + theta;
+	File oldSummary = new File(pathSummary + ".txt");
+	File newSummary = new File(pathSummary + "_v" + version + ".txt");
+	oldSummary.renameTo(newSummary);
+
+	String[] vars = new String[] { "s", "x", "y" };
+	for (String var : vars) {
+	    String pathVar = path + "/Variables/" + shelves + "_" + products + "_" + gamma + "_" + theta + "_" + var;
+	    File oldVar = new File(pathVar + ".csv");
+	    File newVar = new File(pathVar + "_v" + version + ".csv");
+	    oldVar.renameTo(newVar);
+	}
     }
 }

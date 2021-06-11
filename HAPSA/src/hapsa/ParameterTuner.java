@@ -56,6 +56,12 @@ import ilog.cplex.IloCplex.ParameterSet;
  */
 public class ParameterTuner {
 
+    /**
+     * The required optimality gap for each iteration of the re-optimization
+     * procedure.
+     **/
+    private static double MIP_GAP = 0.001;
+
     /** The number of shelves to be selected for each re-optimization run. */
     private static int N_REOPT = 4;
 
@@ -80,12 +86,14 @@ public class ParameterTuner {
     public static void main(String[] args) {
 	System.out.println("Creating directories...");
 	createDirectories();
-	System.out.println("Simulating a store with 50 shelves and 400 products...");
-	Store store = (new StoreSimulator(400, 50, 0)).simulate();
+	System.out.println("Simulating a store with 30 shelves and 240 products...");
+	Store store = (new StoreSimulator(240, 30, 0)).simulate();
 	System.out.println("Tuning APSA...");
 	tuneAPSA(store);
+	System.out.println("Tuning APSA with visibility penalty...");
+	tune(store, Model.Objective.VIS, 100);
 	System.out.println("Tuning HAPSA...");
-	tuneHAPSA(store, 0.01, 0.01);
+	tuneHAPSA(store, 100, 5);
     }
 
     /**
@@ -181,6 +189,7 @@ public class ParameterTuner {
 
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
+
 		if (sh == 0) {
 		    // Collect tuning information for the first shelf.
 		    initModel.tuneParam();
@@ -293,6 +302,7 @@ public class ParameterTuner {
 
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
+
 		if (sh == 0) {
 		    // Collect tuning information for the first shelf.
 		    initModel.tuneParam();
@@ -410,6 +420,7 @@ public class ParameterTuner {
 
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
+
 		if (sh == 0) {
 		    // Collect tuning information for the first shelf.
 		    initModel.tuneParam();
@@ -589,7 +600,7 @@ public class ParameterTuner {
 	    model.setObjective(obj);
 
 	    // Collect tuning information for the re-optimization run.
-	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
+	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, MIP_GAP);
 	    model.tuneParam();
 	    ParameterSet params = model.getParameterSet();
 	    model.writeParameterSet(params, "Parameters/HAPSA/" + obj + "_" + ni + "_" + nj);
@@ -687,7 +698,7 @@ public class ParameterTuner {
 	    model.setObjective(Model.Objective.APSA);
 
 	    // Collect tuning information for the re-optimization run.
-	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
+	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, MIP_GAP);
 	    model.tuneParam();
 	    ParameterSet params = model.getParameterSet();
 	    model.writeParameterSet(params, "Parameters/HAPSA/APSA_" + ni + "_" + nj);
@@ -792,7 +803,7 @@ public class ParameterTuner {
 	    model.setObjective(Model.Objective.HAPSA);
 
 	    // Collect tuning information for the re-optimization run.
-	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, 0.002);
+	    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, MIP_GAP);
 	    model.tuneParam();
 	    ParameterSet params = model.getParameterSet();
 	    model.writeParameterSet(params, "Parameters/HAPSA/HAPSA_" + ni + "_" + nj);

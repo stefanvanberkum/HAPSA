@@ -98,6 +98,31 @@ public class Solution {
 	this.store = store;
     }
 
+    // TODO set private
+    /**
+     * Writes a matrix to a csv file.
+     * 
+     * @param fileName the name of the csv file
+     * @param var      the variable to be written to csv
+     */
+    public static void writeVar(String fileName, double[][] var) {
+	try (PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
+	    for (int i = 0; i < var.length; i++) {
+		StringBuilder row = new StringBuilder(3 * var[0].length);
+		for (int j = 0; j < var[0].length - 1; j++) {
+		    row.append(Double.toString(var[i][j]));
+		    row.append(',');
+		}
+		row.append(Double.toString(var[i][var[0].length - 1]));
+		out.println(row);
+	    }
+	} catch (IOException e) {
+	    System.err.println("Variable could not be written to csv in Solution.writeVar(...).");
+	    e.printStackTrace();
+	    System.exit(-1);
+	}
+    }
+
     /**
      * Finds and returns all products that are allocated to the given set of shelves
      * or not selected in the assortment.
@@ -120,7 +145,7 @@ public class Solution {
 		double[] shelfX = this.x[i];
 
 		for (int j = 0; j < this.store.getProducts().size(); j++) {
-		    if (shelfX[j] == 1) {
+		    if (Math.round(shelfX[j]) == 1) {
 			considered.remove(j);
 		    }
 		}
@@ -416,12 +441,14 @@ public class Solution {
 
 	for (int sh = 0; sh < ni; sh++) {
 	    int i = shelves[sh];
+
 	    for (int pr = 0; pr < nj; pr++) {
 		int j = products.get(pr);
 		this.x[i][j] = newX[sh][pr];
+
 		for (int k = 0; k < nk; k++) {
 		    this.s[i * nk + k][j] = newS[sh * nk + k][pr];
-		    this.y[i * nk + k][j] = newS[sh * nk + k][pr];
+		    this.y[i * nk + k][j] = newY[sh * nk + k][pr];
 		}
 	    }
 	}
@@ -430,12 +457,20 @@ public class Solution {
     /**
      * Writes the solution to a text file.
      * 
-     * @param fileName the name of the file
+     * @param filePath the path to the appropriate result folder (without the file
+     *                 itself)
+     * @param fileName the name of the file (without file extension)
      * @param runTime  the run time in seconds
      */
-    public void writeSolution(String fileName, long runTime) {
-	try (PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
-	    out.println("Results of run:\n");
+    public void writeSolution(String filePath, String fileName, long runTime) {
+	String summary_out = filePath + "Summary/" + fileName + ".txt";
+	String variables_out = filePath + "Variables/" + fileName;
+	String scores_out = filePath + "CSV/" + fileName + "_scores.csv";
+	String shelf_score_out = filePath + "CSV/" + fileName + "_shelf.csv";
+	try (PrintWriter summary = new PrintWriter(new FileWriter(summary_out));
+		PrintWriter scores = new PrintWriter(new FileWriter(scores_out));
+		PrintWriter shelf_score = new PrintWriter(new FileWriter(shelf_score_out));) {
+	    summary.println("Results of run:\n");
 
 	    // Retrieve scores.
 	    int nk = this.store.getShelves().get(0).getSegments().size();
@@ -459,7 +494,7 @@ public class Solution {
 			Product product = this.store.getProducts().get(j);
 
 			double sc = this.s[startK + k][j] / segment.getCapacity();
-			double fsc = product.getMaxProfit() * sc;
+			double fsc = segment.getAttractiveness() * sc;
 			profit += product.getMaxProfit() * fsc;
 			double hsc = product.getHealthScore() * sc;
 			shs += hsc;
@@ -475,36 +510,49 @@ public class Solution {
 	    }
 
 	    // Write profit to file.
-	    out.println("Profit: " + profit + "\n");
+	    summary.println("Profit: " + profit + "\n");
 
 	    // Write Store-average Health Score to file.
-	    out.println("SHS: " + shs + "\n");
+	    summary.println("SHS: " + shs + "\n");
 
 	    // Write Store-average Visibility-weighted Health Score to file.
-	    out.println("SVHS: " + svhs + "\n");
+	    summary.println("SVHS: " + svhs + "\n");
 
-	    // Write Segment-average Health Score to file.
+	    // Write segment-average health score to file and csv.
 	    int nh = this.store.getShelves().get(0).getHorizontal();
 	    int k = 0;
-	    out.println("Segment-average Health Scores:");
+	    summary.println("Segment-average health scores:");
 	    for (int row = 0; row < nk / nh; row++) {
 		for (int col = 0; col < nh; col++) {
-		    out.print(seghs[k]);
+		    summary.print(seghs[k]);
+		    shelf_score.print(seghs[k]);
+		    k++;
 		    if (col < nh - 1) {
-			out.print(" ");
+			summary.print(" ");
+			shelf_score.print(",");
 		    }
 		}
-		out.println();
+		summary.println();
+		shelf_score.println();
 	    }
-	    out.println();
+	    summary.println();
 
 	    // Write stats to file.
-	    out.println("Statistics:");
-	    out.println("Objective: " + this.objective);
-	    out.println("Upper bound: " + this.upperBound);
-	    out.println("Gap: " + ((this.upperBound - this.objective) / this.upperBound));
-	    out.println("Termination reason: " + this.terminationReason);
-	    out.println("Run time: " + runTime);
+	    summary.println("Statistics:");
+	    summary.println("Objective: " + this.objective);
+	    summary.println("Upper bound: " + this.upperBound);
+	    summary.println("Gap: " + ((this.upperBound - this.objective) / this.upperBound));
+	    summary.println("Termination reason: " + this.terminationReason);
+	    summary.println("Run time: " + runTime);
+
+	    // Write results to csv.
+	    scores.println("Profit,SHS,SVHS");
+	    scores.printf("%f,%f,%f\n", profit, shs, svhs);
+
+	    // Write decision variables to csv file.
+	    writeVar(variables_out + "_s.csv", this.s);
+	    writeVar(variables_out + "_x.csv", this.x);
+	    writeVar(variables_out + "_y.csv", this.y);
 	} catch (IOException e) {
 	    System.err.println("Solution could not be written in Solution.writeSolution(...).");
 	    e.printStackTrace();

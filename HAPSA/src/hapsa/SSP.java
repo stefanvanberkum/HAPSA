@@ -28,6 +28,7 @@ import ilog.concert.IloIntExpr;
 import ilog.concert.IloIntVar;
 import ilog.concert.IloNumExpr;
 import ilog.concert.IloNumVar;
+import ilog.cplex.IloCplex;
 
 /**
  * The SSP class provides a framework for the Single Shelf Problem (SSP) model
@@ -97,6 +98,7 @@ public class SSP extends Model {
 	this.y = new IloIntVar[shelf.getSegments().size()][store.getProducts().size()];
 	this.initBool(this.y);
 	this.addConstraints();
+	this.setParam(IloCplex.Param.MIP.Display, 1);
     }
 
     /**
