@@ -454,8 +454,9 @@ public class SSP extends Model {
      */
     private IloNumExpr generateObjective(Objective obj) throws IllegalStateException {
 	try {
-	    IloNumExpr minuend = this.constant(0); // The base objective (profit).
-	    IloNumExpr subtrahend = this.constant(0); // The objective-specific subtrahend (zero for APSA).
+	    // Matrix of multipliers m_kj for each s_kj.
+	    double[][] multiplier = new double[this.shelf.getSegments().size()][this.store.getProducts().size()];
+	    IloNumExpr objective = this.constant(0);
 	    for (int k = 0; k < this.shelf.getSegments().size(); k++) {
 		Segment segment = this.shelf.getSegments().get(k);
 
@@ -463,9 +464,8 @@ public class SSP extends Model {
 		    Product product = this.store.getProducts().get(j);
 
 		    double fc = segment.getAttractiveness() / segment.getCapacity();
-		    IloNumExpr fsc = this.prod(fc, this.s[k][j]);
-		    IloNumExpr phifsc = this.prod(product.getMaxProfit(), fsc);
-		    minuend = this.sum(minuend, phifsc);
+		    double phifc = product.getMaxProfit() * fc;
+		    multiplier[k][j] += phifc;
 
 		    switch (obj) {
 		    case AVA:
@@ -473,44 +473,48 @@ public class SSP extends Model {
 			    throw new IllegalStateException("Lambda has not been initialized.");
 			}
 
+			// Availability penalty ( -(lambda / h_j) * y_kj).
 			double lambdah = this.lambda / product.getHealthScore();
-			subtrahend = this.sum(subtrahend, this.prod(lambdah, this.y[k][j]));
+			objective = this.diff(objective, this.prod(lambdah, this.y[k][j]));
 			break;
 		    case HAPSA:
 			if (this.gamma == null || this.theta == null) {
 			    throw new IllegalStateException("Gamma or theta has not been initialized.");
 			}
 
-			// Visibility penalty.
+			// Visibility penalty ( -(gamma / h_j) * (f_k / c_k) * s_kj).
 			double gammah = this.gamma / product.getHealthScore();
-			subtrahend = this.sum(subtrahend, this.prod(gammah, fsc));
+			double gammahfc = fc * gammah;
+			multiplier[k][j] -= gammahfc;
 
-			// Healthy-left, unhealthy-right approach.
+			// Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
 			double thetah = this.theta * product.getHealthScore();
-			minuend = this.sum(minuend, this.prod(thetah, this.s[k][j]));
+			multiplier[k][j] += thetah;
 			break;
 		    case HLUR:
 			if (this.theta == null) {
 			    throw new IllegalStateException("Theta has not been initialized.");
 			}
 
+			// Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
 			double thetah2 = this.theta * product.getHealthScore();
-			minuend = this.sum(minuend, this.prod(thetah2, this.s[k][j]));
+			multiplier[k][j] += thetah2;
 			break;
 		    case VIS:
 			if (this.gamma == null) {
 			    throw new IllegalStateException("Gamma has not been initialized.");
 			}
 
+			// Visibility penalty ( -(gamma / h_j) * (f_k / c_k) * s_kj).
 			double gammah2 = this.gamma / product.getHealthScore();
-			subtrahend = this.sum(subtrahend, this.prod(gammah2, fsc));
+			double gammahfc2 = fc * gammah2;
+			multiplier[k][j] -= gammahfc2;
 			break;
 		    default:
 			break;
 		    }
 		}
 		if (obj == Objective.HAPSA || obj == Objective.HLUR) {
-		    IloNumExpr sumsums2h2 = this.constant(0);
 		    int nh = this.shelf.getHorizontal();
 
 		    if ((k + 1) % nh != 0) {
@@ -521,16 +525,22 @@ public class SSP extends Model {
 
 			    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 				Product product2 = this.store.getProducts().get(j2);
-				IloNumExpr s2h2 = this.prod(this.s[k2][j2], product2.getHealthScore());
-				sumsums2h2 = this.sum(sumsums2h2, s2h2);
+
+				// Healthy-left, unhealthy-right approach ( -(theta * h_j2 * s[k2][j2])).
+				multiplier[k2][j2] -= this.theta * product2.getHealthScore();
 			    }
 			}
-			IloNumExpr thetasumsums2h2 = this.prod(this.theta, sumsums2h2);
-			subtrahend = this.sum(subtrahend, thetasumsums2h2);
 		    }
 		}
 	    }
-	    return this.diff(minuend, subtrahend);
+	    for (int k = 0; k < this.shelf.getSegments().size(); k++) {
+		for (int j = 0; j < this.store.getProducts().size(); j++) {
+		    // Product m_kj * s_kj.
+		    IloNumExpr ms = this.prod(multiplier[k][j], this.s[k][j]);
+		    objective = this.sum(objective, ms);
+		}
+	    }
+	    return objective;
 	} catch (IloException e) {
 	    System.err.println("Objective could not be created in SSP.getObjective.");
 	    e.printStackTrace();
