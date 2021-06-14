@@ -20,3 +20,4 @@ Health-adjusted Assortment Planning and Shelf-space Allocation (HAPSA).
   - The possible objective types are: Assortment Planning and Shelf-space Allocation (APSA), APSA with an availability penalty (AVA), Health-adjusted APSA (HAPSA), APSA with a Healthy-Left, Unhealthy Right approach (HLUR), and APSA with a visibility penalty (VIS).
 - For each model, a summary is written to a text file and the decision variables s_kj, x_ij, and y_kj are written to a CSV file.
 - Results can be plotted using plotResults.R (we ran it in RStudio).
+- Shelf colormaps can be obtained by running plotShelf.m (we ran it in MATLAB R2020a).
