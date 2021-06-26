@@ -80,11 +80,17 @@ public class Main {
     private static int TIME_LIMIT = 120;
 
     /**
+     * True if tuned parameters should be used. If set to false, default CPLEX
+     * parameters will be used.
+     **/
+    private static boolean USE_PARAM = true;
+
+    /**
      * Creates the directories for the result files.
      */
     public static void createDirectories() {
 	try {
-	    String[] types = new String[] { "APSA", "AVA", "HAPSA", "HLUR", "VIS" };
+	    String[] types = new String[] { "APSA", "AVA", "HAPSA", "HLUR", "VIS", "APSA_2D" };
 	    for (String type : types) {
 		Files.createDirectories(Paths.get("Results/" + type + "/Summary/"));
 		Files.createDirectories(Paths.get("Results/" + type + "/Variables/"));
@@ -116,22 +122,19 @@ public class Main {
 	    System.exit(-1);
 	}
 
+	// Solve a 3D implementation of APSA (as in our paper).
 	System.out.println("Simulating a store with 30 shelves and 240 products...");
 	Store store = (new StoreSimulator(240, 30, 0)).simulate();
 
-	// console.println("Running APSA...");
+	console.println("Running APSA...");
 	long startTime = System.currentTimeMillis() / 1000;
-	// Solution apsa = solveAPSA(store);
+	Solution apsa = solveAPSA(store);
 	long endTime = System.currentTimeMillis() / 1000;
-	// apsa.writeSolution("Results/APSA/", "30_240", endTime - startTime);
-	// console.println("APSA ran for " + (endTime - startTime) + " seconds.");
+	apsa.writeSolution("Results/APSA/", "30_240", endTime - startTime);
+	console.println("APSA ran for " + (endTime - startTime) + " seconds.");
 
-	// Total: { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85,
-	// 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165,
-	// 170, 175, 180, 185, 190, 195, 200 }
-
-	double[] gammas = new double[] { 200, 195, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85,
-		90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190 };
+	double[] gammas = new double[] { 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100,
+		105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200 };
 	for (double gamma : gammas) {
 	    console.println("Running APSA with visibility penalty (gamma = " + gamma + ")...");
 	    startTime = System.currentTimeMillis() / 1000;
@@ -140,6 +143,223 @@ public class Main {
 	    hapsa.writeSolution("Results/VIS/", "30_240_" + gamma, endTime - startTime);
 	    console.println("APSA with visibility penalty (gamma = " + gamma + ") ran for " + (endTime - startTime)
 		    + " seconds.");
+	}
+
+	double gamma = 100;
+	double[] thetas = new double[] { 0.0001, 0.00025, 0.0005, 0.001 };
+	for (double theta : thetas) {
+	    console.println("Running HAPSA (gamma = " + gamma + ", theta = " + theta + ")...");
+	    startTime = System.currentTimeMillis() / 1000;
+	    Solution hapsa = solveHAPSA(store, gamma, theta);
+	    endTime = System.currentTimeMillis() / 1000;
+	    hapsa.writeSolution("Results/HAPSA/", "30_240_" + gamma + "_" + theta, endTime - startTime);
+	    console.println("HAPSA (gamma = " + gamma + ", theta = " + theta + ") ran for " + (endTime - startTime)
+		    + " seconds.");
+	}
+
+	// Solve a 2D implementation of APSA (as in original paper).
+	// Note that changing the static variables in this way is not recommended,
+	// it is just for the sake of demonstration.
+	double CAPACITY = 6;
+	double[] END_SEG = new double[] { 0.06, 0.1 };
+	double HEALTH_SCORE_LB = 1;
+	double HEALTH_SCORE_UB = 100;
+	int HORIZONTAL = 3;
+	double[] HORIZONTAL_CAT = new double[] { 0.05, 0.25, 0.45, 0.65, 0.85 };
+	double MAX_PROFIT_LB = 1;
+	double MAX_PROFIT_UB = 25;
+	double MAX_SPACE_UB = 6;
+	double[] MIDDLE_SEG = new double[] { 0.0, 0.05 };
+	double MIN_ALLOCATED = 0.1;
+	double MIN_SPACE_LB = 1;
+	double MIN_SPACE_UB = 3;
+	double L_FRAC = 0.0;
+	double H1_FRAC = 0.0;
+	double H2_FRAC = 0.0;
+	double H3_FRAC = 0.0;
+	int VERTICAL = 1;
+	double[] VERTICAL_CAT = new double[] { 1.0 };
+	StoreSimulator.setParameters(CAPACITY, END_SEG, HEALTH_SCORE_LB, HEALTH_SCORE_UB, HORIZONTAL, HORIZONTAL_CAT,
+		MAX_PROFIT_LB, MAX_PROFIT_UB, MAX_SPACE_UB, MIDDLE_SEG, MIN_ALLOCATED, MIN_SPACE_LB, MIN_SPACE_UB,
+		L_FRAC, H1_FRAC, H2_FRAC, H3_FRAC, VERTICAL, VERTICAL_CAT);
+
+	int runs = 3;
+	int[] shelves = new int[] { 50, 100 };
+	int[] products = new int[] { 400, 800 };
+	int[] ts = new int[] { 2, 3, 4 };
+	double[] epsilons = new double[] { 0.015, 0.01, 0.005 };
+	STOP_TIME = 3600;
+
+	for (int i = 0; i < shelves.length; i++) {
+	    for (int j = 0; j < runs; j++) {
+		L_FRAC = 0.0;
+		H1_FRAC = 0.0;
+		H2_FRAC = 0.0;
+		H3_FRAC = 0.0;
+		StoreSimulator.setParameters(CAPACITY, END_SEG, HEALTH_SCORE_LB, HEALTH_SCORE_UB, HORIZONTAL,
+			HORIZONTAL_CAT, MAX_PROFIT_LB, MAX_PROFIT_UB, MAX_SPACE_UB, MIDDLE_SEG, MIN_ALLOCATED,
+			MIN_SPACE_LB, MIN_SPACE_UB, L_FRAC, H1_FRAC, H2_FRAC, H3_FRAC, VERTICAL, VERTICAL_CAT);
+		store = (new StoreSimulator(products[i], shelves[i], j)).simulate();
+
+		N_REOPT = 4;
+		STOP_GAP = 0.005;
+
+		// Regular APSA.
+		console.println("Running APSA (shelves = " + shelves[i] + ", products = " + products[i] + ")...");
+
+		startTime = System.currentTimeMillis() / 1000;
+		try (HAPSA model = new HAPSA(store)) {
+		    model.setObjective(Model.Objective.APSA);
+		    ParameterSet params = model.readParameterSet("Parameters/CONT/APSA_30_240");
+		    model.setParameterSet(params);
+		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, STOP_GAP);
+		    model.setParam(IloCplex.Param.TimeLimit, STOP_TIME);
+		    model.solve();
+
+		    double[][] s = new double[store.getSegments().size()][store.getProducts().size()];
+		    double[][] x = new double[store.getShelves().size()][store.getProducts().size()];
+		    double[][] y = new double[store.getSegments().size()][store.getProducts().size()];
+
+		    for (int sh = 0; sh < store.getShelves().size(); sh++) {
+			x[sh] = model.getValues(model.getX()[sh]);
+		    }
+
+		    for (int seg = 0; seg < store.getSegments().size(); seg++) {
+			s[seg] = model.getValues(model.getS()[seg]);
+			y[seg] = model.getValues(model.getY()[seg]);
+		    }
+
+		    Solution result = new Solution(s, x, y, store);
+		    result.updateObjectiveAPSA();
+		    double upperBound = model.getObjValue() * (1 + model.getMIPRelativeGap())
+			    + Math.pow(10, -10) * model.getMIPRelativeGap();
+		    result.setUpperBound(upperBound);
+		    endTime = System.currentTimeMillis() / 1000;
+		    result.writeSolution("Results/APSA_2D/", shelves[i] + "_" + products[i] + "_" + j,
+			    endTime - startTime);
+		    console.println("APSA (shelves = " + shelves[i] + ", products = " + products[i] + ") ran for "
+			    + (endTime - startTime) + " seconds.");
+		} catch (IloException e) {
+		    System.out.println("APSA could not be solved in Main.main(...).");
+		    e.printStackTrace();
+		    System.exit(-1);
+		}
+
+		// Heuristic with affinities.
+		// With five sets from L.
+		L_FRAC = (double) 5 / products[i];
+		H1_FRAC = 0.0;
+		H2_FRAC = 0.0;
+		H3_FRAC = 0.0;
+		StoreSimulator.setParameters(CAPACITY, END_SEG, HEALTH_SCORE_LB, HEALTH_SCORE_UB, HORIZONTAL,
+			HORIZONTAL_CAT, MAX_PROFIT_LB, MAX_PROFIT_UB, MAX_SPACE_UB, MIDDLE_SEG, MIN_ALLOCATED,
+			MIN_SPACE_LB, MIN_SPACE_UB, L_FRAC, H1_FRAC, H2_FRAC, H3_FRAC, VERTICAL, VERTICAL_CAT);
+		Store lStore = (new StoreSimulator(products[i], shelves[i], j)).simulate();
+		console.println(
+			"Running heuristic with L (shelves = " + shelves[i] + ", products = " + products[i] + ")...");
+		startTime = System.currentTimeMillis() / 1000;
+		Solution model = solveAPSA(lStore);
+		endTime = System.currentTimeMillis() / 1000;
+		model.writeSolution("Results/APSA_2D/", shelves[i] + "_" + products[i] + "_L_" + j,
+			endTime - startTime);
+		console.println("Heuristic with L (shelves = " + shelves[i] + ", products = " + products[i]
+			+ ") ran for " + (endTime - startTime) + " seconds.");
+
+		// With five sets from H1.
+		L_FRAC = 0.0;
+		H1_FRAC = (double) 5 / products[i];
+		H2_FRAC = 0.0;
+		H3_FRAC = 0.0;
+		StoreSimulator.setParameters(CAPACITY, END_SEG, HEALTH_SCORE_LB, HEALTH_SCORE_UB, HORIZONTAL,
+			HORIZONTAL_CAT, MAX_PROFIT_LB, MAX_PROFIT_UB, MAX_SPACE_UB, MIDDLE_SEG, MIN_ALLOCATED,
+			MIN_SPACE_LB, MIN_SPACE_UB, L_FRAC, H1_FRAC, H2_FRAC, H3_FRAC, VERTICAL, VERTICAL_CAT);
+		Store h1Store = (new StoreSimulator(products[i], shelves[i], j)).simulate();
+		console.println(
+			"Running heuristic with H1 (shelves = " + shelves[i] + ", products = " + products[i] + ")...");
+		startTime = System.currentTimeMillis() / 1000;
+		model = solveAPSA(h1Store);
+		endTime = System.currentTimeMillis() / 1000;
+		model.writeSolution("Results/APSA_2D/", shelves[i] + "_" + products[i] + "_H1_" + j,
+			endTime - startTime);
+		console.println("Heuristic with H1 (shelves = " + shelves[i] + ", products = " + products[i]
+			+ ") ran for " + (endTime - startTime) + " seconds.");
+
+		// With five sets from H2.
+		L_FRAC = 0.0;
+		H1_FRAC = 0.0;
+		H2_FRAC = (double) 5 / products[i];
+		H3_FRAC = 0.0;
+		StoreSimulator.setParameters(CAPACITY, END_SEG, HEALTH_SCORE_LB, HEALTH_SCORE_UB, HORIZONTAL,
+			HORIZONTAL_CAT, MAX_PROFIT_LB, MAX_PROFIT_UB, MAX_SPACE_UB, MIDDLE_SEG, MIN_ALLOCATED,
+			MIN_SPACE_LB, MIN_SPACE_UB, L_FRAC, H1_FRAC, H2_FRAC, H3_FRAC, VERTICAL, VERTICAL_CAT);
+		Store h2Store = (new StoreSimulator(products[i], shelves[i], j)).simulate();
+		console.println(
+			"Running heuristic with H2 (shelves = " + shelves[i] + ", products = " + products[i] + ")...");
+		startTime = System.currentTimeMillis() / 1000;
+		model = solveAPSA(h2Store);
+		endTime = System.currentTimeMillis() / 1000;
+		model.writeSolution("Results/APSA_2D/", shelves[i] + "_" + products[i] + "_H2_" + j,
+			endTime - startTime);
+		console.println("Heuristic with H2 (shelves = " + shelves[i] + ", products = " + products[i]
+			+ ") ran for " + (endTime - startTime) + " seconds.");
+
+		// With five sets from H3.
+		L_FRAC = 0.0;
+		H1_FRAC = 0.0;
+		H2_FRAC = 0.0;
+		H3_FRAC = (double) 5 / products[i];
+		StoreSimulator.setParameters(CAPACITY, END_SEG, HEALTH_SCORE_LB, HEALTH_SCORE_UB, HORIZONTAL,
+			HORIZONTAL_CAT, MAX_PROFIT_LB, MAX_PROFIT_UB, MAX_SPACE_UB, MIDDLE_SEG, MIN_ALLOCATED,
+			MIN_SPACE_LB, MIN_SPACE_UB, L_FRAC, H1_FRAC, H2_FRAC, H3_FRAC, VERTICAL, VERTICAL_CAT);
+		Store h3Store = (new StoreSimulator(products[i], shelves[i], j)).simulate();
+		console.println(
+			"Running heuristic with H3 (shelves = " + shelves[i] + ", products = " + products[i] + ")...");
+		startTime = System.currentTimeMillis() / 1000;
+		model = solveAPSA(h3Store);
+		endTime = System.currentTimeMillis() / 1000;
+		model.writeSolution("Results/APSA_2D/", shelves[i] + "_" + products[i] + "_H3_" + j,
+			endTime - startTime);
+		console.println("Heuristic with H3 (shelves = " + shelves[i] + ", products = " + products[i]
+			+ ") ran for " + (endTime - startTime) + " seconds.");
+
+		// With five sets from L, H1, H2, and H3.
+		L_FRAC = (double) 5 / products[i];
+		H1_FRAC = (double) 5 / products[i];
+		H2_FRAC = (double) 5 / products[i];
+		H3_FRAC = (double) 5 / products[i];
+		StoreSimulator.setParameters(CAPACITY, END_SEG, HEALTH_SCORE_LB, HEALTH_SCORE_UB, HORIZONTAL,
+			HORIZONTAL_CAT, MAX_PROFIT_LB, MAX_PROFIT_UB, MAX_SPACE_UB, MIDDLE_SEG, MIN_ALLOCATED,
+			MIN_SPACE_LB, MIN_SPACE_UB, L_FRAC, H1_FRAC, H2_FRAC, H3_FRAC, VERTICAL, VERTICAL_CAT);
+		Store affinityStore = (new StoreSimulator(products[i], shelves[i], j)).simulate();
+		console.println("Running heuristic with affinities (shelves = " + shelves[i] + ", products = "
+			+ products[i] + ")...");
+		startTime = System.currentTimeMillis() / 1000;
+		model = solveAPSA(affinityStore);
+		endTime = System.currentTimeMillis() / 1000;
+		model.writeSolution("Results/APSA_2D/", shelves[i] + "_" + products[i] + "_affinities_" + j,
+			endTime - startTime);
+		console.println("Heuristic with affinities (shelves = " + shelves[i] + ", products = " + products[i]
+			+ ") ran for " + (endTime - startTime) + " seconds.");
+
+		// Heuristic without affinities.
+		for (int t : ts) {
+		    for (double epsilon : epsilons) {
+			N_REOPT = t;
+			STOP_GAP = epsilon;
+
+			console.println("Running heuristic (shelves = " + shelves[i] + ", products = " + products[i]
+				+ ", t = " + t + ", epsilon = " + epsilon + ")...");
+			startTime = System.currentTimeMillis() / 1000;
+			model = solveAPSA(store);
+			endTime = System.currentTimeMillis() / 1000;
+			model.writeSolution("Results/APSA_2D/",
+				shelves[i] + "_" + products[i] + "_" + t + "_" + epsilon + "_" + j,
+				endTime - startTime);
+			console.println("Heuristic (shelves = " + shelves[i] + ", products = " + products[i] + ", t = "
+				+ t + ", epsilon = " + epsilon + ") ran for " + (endTime - startTime) + " seconds.");
+		    }
+		}
+	    }
 	}
     }
 
@@ -206,6 +426,7 @@ public class Main {
 
 	System.out.println("Initiating " + obj + " initialization procedure...");
 
+	// Loop through all shelves.
 	for (int sh = 0; sh < sortedShelves.size(); sh++) {
 	    int i = store.getShelves().indexOf(sortedShelves.get(sh));
 	    Shelf shelf = sortedShelves.get(sh);
@@ -238,8 +459,12 @@ public class Main {
 		initModel.setObjective(obj);
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
-		ParameterSet params = initModel.readParameterSet("Parameters/SSP/" + obj + "_" + ni + "_" + nj);
-		initModel.setParameterSet(params);
+
+		if (USE_PARAM) {
+		    ParameterSet params = initModel.readParameterSet("Parameters/SSP/" + obj + "_" + ni + "_" + nj);
+		    initModel.setParameterSet(params);
+		}
+
 		boolean feasible = initModel.solve();
 
 		if (!feasible) {
@@ -264,10 +489,12 @@ public class Main {
 		    if (nonSelected.contains(j1) && Math.round(w[nonSelected.indexOf(j1)]) == 1) {
 			// Product 2 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j2));
+			updateRelationships(store, selected, j2);
 		    }
 		    if (nonSelected.contains(j2) && Math.round(w[nonSelected.indexOf(j2)]) == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
+			updateRelationships(store, selected, j1);
 		    }
 		}
 
@@ -277,6 +504,7 @@ public class Main {
 		    if (nonSelected.contains(j2) && Math.round(w[nonSelected.indexOf(j2)]) == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
+			updateRelationships(store, selected, j1);
 		    }
 		}
 
@@ -327,6 +555,7 @@ public class Main {
 
 	System.out.println("Initiating APSA initialization procedure...");
 
+	// Loop through all shelves.
 	for (int sh = 0; sh < sortedShelves.size(); sh++) {
 	    int i = store.getShelves().indexOf(sortedShelves.get(sh));
 	    Shelf shelf = sortedShelves.get(sh);
@@ -348,8 +577,12 @@ public class Main {
 		initModel.setObjective(Model.Objective.APSA);
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
-		ParameterSet params = initModel.readParameterSet("Parameters/SSP/APSA_" + ni + "_" + nj);
-		initModel.setParameterSet(params);
+
+		if (USE_PARAM) {
+		    ParameterSet params = initModel.readParameterSet("Parameters/SSP/APSA_" + ni + "_" + nj);
+		    initModel.setParameterSet(params);
+		}
+
 		boolean feasible = initModel.solve();
 
 		if (!feasible) {
@@ -374,10 +607,12 @@ public class Main {
 		    if (nonSelected.contains(j1) && Math.round(w[nonSelected.indexOf(j1)]) == 1) {
 			// Product 2 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j2));
+			updateRelationships(store, selected, j2);
 		    }
 		    if (nonSelected.contains(j2) && Math.round(w[nonSelected.indexOf(j2)]) == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
+			updateRelationships(store, selected, j1);
 		    }
 		}
 
@@ -387,6 +622,7 @@ public class Main {
 		    if (nonSelected.contains(j2) && Math.round(w[nonSelected.indexOf(j2)]) == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
+			updateRelationships(store, selected, j1);
 		    }
 		}
 
@@ -440,6 +676,7 @@ public class Main {
 
 	System.out.println("Initiating HAPSA initialization procedure...");
 
+	// Loop through all shelves.
 	for (int sh = 0; sh < sortedShelves.size(); sh++) {
 	    int i = store.getShelves().indexOf(sortedShelves.get(sh));
 	    Shelf shelf = sortedShelves.get(sh);
@@ -463,8 +700,13 @@ public class Main {
 		initModel.setObjective(Model.Objective.HAPSA);
 		int ni = store.getShelves().size();
 		int nj = store.getProducts().size();
-		ParameterSet params = initModel.readParameterSet("Parameters/SSP/HAPSA_" + ni + "_" + nj);
-		initModel.setParameterSet(params);
+
+		if (USE_PARAM) {
+		    ParameterSet params = initModel.readParameterSet("Parameters/SSP/HAPSA_" + ni + "_" + nj);
+		    initModel.setParameterSet(params);
+		}
+
+		initModel.setParam(IloCplex.Param.TimeLimit, TIME_LIMIT);
 		boolean feasible = initModel.solve();
 
 		if (!feasible) {
@@ -489,10 +731,12 @@ public class Main {
 		    if (nonSelected.contains(j1) && Math.round(w[nonSelected.indexOf(j1)]) == 1) {
 			// Product 2 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j2));
+			updateRelationships(store, selected, j2);
 		    }
 		    if (nonSelected.contains(j2) && Math.round(w[nonSelected.indexOf(j2)]) == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
+			updateRelationships(store, selected, j1);
 		    }
 		}
 
@@ -502,6 +746,7 @@ public class Main {
 		    if (nonSelected.contains(j2) && Math.round(w[nonSelected.indexOf(j2)]) == 1) {
 			// Product 1 cannot be placed on another shelf.
 			selected.add(store.getProducts().get(j1));
+			updateRelationships(store, selected, j1);
 		    }
 		}
 
@@ -563,8 +808,12 @@ public class Main {
 	    }
 	    continuous.setObjective(obj);
 	    continuous.relax();
-	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/" + obj + "_" + ni + "_" + nj);
-	    continuous.setParameterSet(params);
+
+	    if (USE_PARAM) {
+		ParameterSet params = continuous.readParameterSet("Parameters/CONT/" + obj + "_" + ni + "_" + nj);
+		continuous.setParameterSet(params);
+	    }
+
 	    boolean feasible = continuous.solve();
 	    if (!feasible) {
 		throw new IllegalStateException("No feasible upper bound found.");
@@ -646,6 +895,7 @@ public class Main {
 			// Product 1 cannot be considered in this run as product 2 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j1));
+			updateRelationships(store, consideredProducts, j1);
 		    }
 		}
 
@@ -658,11 +908,13 @@ public class Main {
 			// Product 1 cannot be considered in this run as product 2 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j1));
+			updateRelationships(store, consideredProducts, j1);
 		    }
 		    if (consideredProducts.contains(j2) && !consideredProducts.contains(j1)) {
 			// Product 2 cannot be considered in this run as product 1 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j2));
+			updateRelationships(store, consideredProducts, j2);
 		    }
 		}
 
@@ -682,8 +934,12 @@ public class Main {
 			break;
 		    }
 		    model.setObjective(obj);
-		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/" + obj + "_" + ni + "_" + nj);
-		    model.setParameterSet(params);
+
+		    if (USE_PARAM) {
+			ParameterSet params = model.readParameterSet("Parameters/HAPSA/" + obj + "_" + ni + "_" + nj);
+			model.setParameterSet(params);
+		    }
+
 		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, MIP_GAP);
 		    model.setParam(IloCplex.Param.TimeLimit, TIME_LIMIT);
 		    boolean feasible = model.solve();
@@ -758,8 +1014,12 @@ public class Main {
 	try (HAPSA continuous = new HAPSA(store)) {
 	    continuous.setObjective(Model.Objective.APSA);
 	    continuous.relax();
-	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/APSA_" + ni + "_" + nj);
-	    continuous.setParameterSet(params);
+
+	    if (USE_PARAM) {
+		ParameterSet params = continuous.readParameterSet("Parameters/CONT/APSA_" + ni + "_" + nj);
+		continuous.setParameterSet(params);
+	    }
+
 	    boolean feasible = continuous.solve();
 	    if (!feasible) {
 		throw new IllegalStateException("No feasible upper bound found.");
@@ -842,6 +1102,7 @@ public class Main {
 			// Product 1 cannot be considered in this run as product 2 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j1));
+			updateRelationships(store, consideredProducts, j1);
 		    }
 		}
 
@@ -854,11 +1115,13 @@ public class Main {
 			// Product 1 cannot be considered in this run as product 2 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j1));
+			updateRelationships(store, consideredProducts, j1);
 		    }
 		    if (consideredProducts.contains(j2) && !consideredProducts.contains(j1)) {
 			// Product 2 cannot be considered in this run as product 1 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j2));
+			updateRelationships(store, consideredProducts, j2);
 		    }
 		}
 
@@ -868,8 +1131,11 @@ public class Main {
 		    model.initializePartial(incumbent, consideredProducts);
 		    model.setObjective(Model.Objective.APSA);
 
-		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/APSA_" + ni + "_" + nj);
-		    model.setParameterSet(params);
+		    if (USE_PARAM) {
+			ParameterSet params = model.readParameterSet("Parameters/HAPSA/APSA_" + ni + "_" + nj);
+			model.setParameterSet(params);
+		    }
+
 		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, MIP_GAP);
 		    model.setParam(IloCplex.Param.TimeLimit, TIME_LIMIT);
 		    boolean feasible = model.solve();
@@ -950,8 +1216,12 @@ public class Main {
 	    continuous.setTheta(theta);
 	    continuous.setObjective(Model.Objective.HAPSA);
 	    continuous.relax();
-	    ParameterSet params = continuous.readParameterSet("Parameters/CONT/HAPSA_" + ni + "_" + nj);
-	    continuous.setParameterSet(params);
+
+	    if (USE_PARAM) {
+		ParameterSet params = continuous.readParameterSet("Parameters/CONT/HAPSA_" + ni + "_" + nj);
+		continuous.setParameterSet(params);
+	    }
+
 	    boolean feasible = continuous.solve();
 	    if (!feasible) {
 		throw new IllegalStateException("No feasible upper bound found.");
@@ -1033,6 +1303,7 @@ public class Main {
 			// Product 1 cannot be considered in this run as product 2 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j1));
+			updateRelationships(store, consideredProducts, j1);
 		    }
 		}
 
@@ -1045,11 +1316,13 @@ public class Main {
 			// Product 1 cannot be considered in this run as product 2 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j1));
+			updateRelationships(store, consideredProducts, j1);
 		    }
 		    if (consideredProducts.contains(j2) && !consideredProducts.contains(j1)) {
 			// Product 2 cannot be considered in this run as product 1 is already placed on
 			// a shelf that is not considered.
 			consideredProducts.remove(consideredProducts.indexOf(j2));
+			updateRelationships(store, consideredProducts, j2);
 		    }
 		}
 
@@ -1060,8 +1333,12 @@ public class Main {
 		    model.setGamma(gamma);
 		    model.setTheta(theta);
 		    model.setObjective(Model.Objective.HAPSA);
-		    ParameterSet params = model.readParameterSet("Parameters/HAPSA/HAPSA_" + ni + "_" + nj);
-		    model.setParameterSet(params);
+
+		    if (USE_PARAM) {
+			ParameterSet params = model.readParameterSet("Parameters/HAPSA/HAPSA_" + ni + "_" + nj);
+			model.setParameterSet(params);
+		    }
+
 		    model.setParam(IloCplex.Param.MIP.Tolerances.MIPGap, MIP_GAP);
 		    model.setParam(IloCplex.Param.TimeLimit, TIME_LIMIT);
 		    boolean feasible = model.solve();
@@ -1116,5 +1393,110 @@ public class Main {
 	    incumbent.setTerminationReason(Solution.Termination.TIME);
 	}
 	return incumbent;
+    }
+
+    /**
+     * Updates the affinity relationships for the re-optimization algorithm when a
+     * product is removed from consideration. For a product j that is removed from
+     * consideration, it removes any product j' from consideration as well if (j,
+     * j') or (j', j) in H1 (symmetric assortment affinity) or if (j', j) in H2
+     * (asymmetric assortment affinity).
+     * 
+     * @param store              the store
+     * @param consideredProducts the list of currently considered products
+     * @param removedIndex       the index of the product that is removed from
+     *                           consideration
+     */
+    private static void updateRelationships(Store store, ArrayList<Integer> consideredProducts, int removedIndex) {
+	// For a product j that is removed from consideration, remove all products j'
+	// from consideration if (j, j') or (j', j) in H1.
+	for (SymmetricPair pair : store.getSymmetricAssortment()) {
+	    int j1 = pair.getIndex1();
+	    int j2 = pair.getIndex2();
+	    if (consideredProducts.contains(j1) && removedIndex == j2) {
+		// Product 1 cannot be considered in this run as product 2 is also not
+		// considered.
+		consideredProducts.remove(consideredProducts.indexOf(j1));
+
+		// Recursively update other relations.
+		updateRelationships(store, consideredProducts, j1);
+	    }
+	    if (consideredProducts.contains(j2) && removedIndex == j1) {
+		// Product 2 cannot be considered in this run as product 1 is also not
+		// considered.
+		consideredProducts.remove(consideredProducts.indexOf(j2));
+
+		// Recursively update other relations.
+		updateRelationships(store, consideredProducts, j2);
+	    }
+	}
+
+	// For a product j that is removed from consideration, remove all products j'
+	// from consideration if (j', j) in H2.
+	for (AsymmetricPair pair : store.getAsymmetricAssortment()) {
+	    int j1 = pair.getIndex1();
+	    int j2 = pair.getIndex2();
+	    if (consideredProducts.contains(j1) && removedIndex == j2) {
+		// Product 1 cannot be considered in this run as product 2 is also not
+		// considered.
+		consideredProducts.remove(consideredProducts.indexOf(j1));
+
+		// Recursively update other relations.
+		updateRelationships(store, consideredProducts, j1);
+	    }
+	}
+    }
+
+    /**
+     * Updates the affinity relationships for the initialization algorithm when a
+     * product is removed from consideration. For a product j that is removed from
+     * consideration, it removes any product j' from consideration as well if (j,
+     * j') or (j', j) in H1 (symmetric assortment affinity) or if (j', j) in H2
+     * (asymmetric assortment affinity).
+     * 
+     * @param store        the store
+     * @param selected     the list of currently selected products (which are not
+     *                     further considered)
+     * @param removedIndex the index of the product that is removed from
+     *                     consideration
+     */
+    private static void updateRelationships(Store store, HashSet<Product> selected, int removedIndex) {
+	// For a product j that is removed from consideration, remove all products j'
+	// from consideration if (j, j') or (j', j) in H1.
+	for (SymmetricPair pair : store.getSymmetricAssortment()) {
+	    int j1 = pair.getIndex1();
+	    int j2 = pair.getIndex2();
+	    if (!selected.contains(store.getProducts().get(j1)) && removedIndex == j2) {
+		// Product 1 cannot be considered in subsequent runs as product 2 is also not
+		// considered.
+		selected.add(store.getProducts().get(j1));
+
+		// Recursively update other relations.
+		updateRelationships(store, selected, j1);
+	    }
+	    if (!selected.contains(store.getProducts().get(j2)) && removedIndex == j1) {
+		// Product 2 cannot be considered in subsequent runs as product 1 is also not
+		// considered.
+		selected.add(store.getProducts().get(j2));
+
+		// Recursively update other relations.
+		updateRelationships(store, selected, j2);
+	    }
+	}
+
+	// For a product j that is removed from consideration, remove all products j'
+	// from consideration if (j', j) in H2.
+	for (AsymmetricPair pair : store.getAsymmetricAssortment()) {
+	    int j1 = pair.getIndex1();
+	    int j2 = pair.getIndex2();
+	    if (!selected.contains(store.getProducts().get(j1)) && removedIndex == j2) {
+		// Product 1 cannot be considered in subsequent runs as product 2 is also not
+		// considered.
+		selected.add(store.getProducts().get(j1));
+
+		// Recursively update other relations.
+		updateRelationships(store, selected, j1);
+	    }
+	}
     }
 }

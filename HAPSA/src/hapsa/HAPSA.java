@@ -353,7 +353,7 @@ public class HAPSA extends Model {
      * shelf.
      * 
      * @param shelf any shelf
-     * @param i     the index of any shelf
+     * @param i     the index of the shelf
      * @param k     the index of any segment on the shelf
      * @param j     the index of any product
      */
@@ -373,9 +373,10 @@ public class HAPSA extends Model {
      * placed on at least one shelf segment if it is allocated to the corresponding
      * shelf.
      * 
-     * @param yT the transpose of the matrix of decision variables y_kj
-     * @param i  the index of any shelf
-     * @param j  the index of any product
+     * @param yT    the transpose of the matrix of decision variables y_kj
+     * @param shelf any shelf
+     * @param i     the index of the shelf
+     * @param j     the index of any product
      */
     private void add1h(IloIntVar[][] yT, Shelf shelf, int i, int j) {
 	try {
@@ -733,19 +734,11 @@ public class HAPSA extends Model {
 			    double gammah = this.gamma / product.getHealthScore();
 			    double gammahfc = fc * gammah;
 			    multiplier[startK + k][j] -= gammahfc;
-
-			    // Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
-			    double thetah = this.theta * product.getHealthScore();
-			    multiplier[startK + k][j] += thetah;
 			    break;
 			case HLUR:
 			    if (this.theta == null) {
 				throw new IllegalStateException("Theta has not been initialized.");
 			    }
-
-			    // Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
-			    double thetah2 = this.theta * product.getHealthScore();
-			    multiplier[startK + k][j] += thetah2;
 			    break;
 			case VIS:
 			    if (this.gamma == null) {
@@ -772,6 +765,12 @@ public class HAPSA extends Model {
 
 				for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 				    Product product2 = this.store.getProducts().get(j2);
+
+				    // Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
+				    // Note that this simply adds (theta * h_j1 * s[k1][j1]) for each segment to the
+				    // right of k1.
+				    double thetah = this.theta * product2.getHealthScore();
+				    multiplier[startK + k][j2] += thetah;
 
 				    // Healthy-left, unhealthy-right approach ( -(theta * h_j2 * s[k2][j2])).
 				    multiplier[startK + k2][j2] -= this.theta * product2.getHealthScore();

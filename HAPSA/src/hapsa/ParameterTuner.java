@@ -499,7 +499,6 @@ public class ParameterTuner {
      * @param store the store to be considered
      * @param obj   the objective function type, one of: AVA, HLUR, or VIS
      * @param param the parameter that corresponds to the objective function type
-     * @return the solution
      */
     private static void tuneReOpt(Solution init, Store store, Model.Objective obj, double param) {
 	System.out.println("Initiating " + obj + " re-optimization tuning...");
@@ -619,7 +618,6 @@ public class ParameterTuner {
      * 
      * @param init  the initial solution provided by the initialization procedure
      * @param store the store to be considered
-     * @return the solution
      */
     private static void tuneReOptAPSA(Solution init, Store store) {
 	System.out.println("Initiating APSA re-optimization tuning...");
@@ -720,7 +718,6 @@ public class ParameterTuner {
      * @param gamma the gamma parameter for the visibility penalty
      * @param theta the theta parameter for the healthy-left, unhealthy-right
      *              approach
-     * @return the solution
      */
     private static void tuneReOptHAPSA(Solution init, Store store, double gamma, double theta) {
 	System.out.println("Initiating HAPSA re-optimization tuning...");

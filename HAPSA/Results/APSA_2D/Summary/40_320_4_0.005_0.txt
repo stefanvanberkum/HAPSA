@@ -1,0 +1,17 @@
+Results of run:
+
+Profit: 1269.5819047944826
+
+SHS: 47.97083333333333
+
+SVHS: 24.613130821022338
+
+Segment-average health scores:
+52.61666666666667 47.28333333333333 44.0125
+
+Statistics:
+Objective: 1269.5819047944826
+Upper bound: 1275.7926446400377
+Gap: 0.004868142069675752
+Termination reason: GAP
+Run time: 245

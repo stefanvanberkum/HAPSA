@@ -39,16 +39,36 @@ import ilog.cplex.IloCplex;
 public abstract class Model extends IloCplex {
 
     /**
-     * The possible objective types: Assortment Planning and Shelf-space Allocation
-     * (APSA), APSA with an availability penalty (AVA), Health-adjusted APSA
-     * (HAPSA), APSA with a Healthy-Left, Unhealthy Right approach, and APSA with a
-     * visibility penalty (VIS).
+     * The possible objective function types.
      *
      * @author Stefan van Berkum
      *
      */
     enum Objective {
-	APSA, AVA, HAPSA, HLUR, VIS
+	/**
+	 * Assortment Planning and Shelf-space Allocation (APSA).
+	 */
+	APSA,
+
+	/**
+	 * APSA with an availability penalty (AVA).
+	 */
+	AVA,
+
+	/**
+	 * Health-adjusted APSA (HAPSA)
+	 */
+	HAPSA,
+
+	/**
+	 * APSA with a Healthy-Left, Unhealthy Right approach (HLUR).
+	 */
+	HLUR,
+
+	/**
+	 * APSA with a visibility penalty (VIS).
+	 */
+	VIS
     }
 
     /**
@@ -90,6 +110,8 @@ public abstract class Model extends IloCplex {
     /**
      * Sets the objective-specific parameter for the objectives with a visibility
      * penalty (VIS and HAPSA).
+     * 
+     * @param val the new value for gamma
      */
     public void setGamma(double val) {
 	this.gamma = val;
@@ -98,6 +120,8 @@ public abstract class Model extends IloCplex {
     /**
      * Sets the objective-specific parameter for the objectives with an availability
      * penalty (AVA).
+     * 
+     * @param val the new value for lambda
      */
     public void setLambda(double val) {
 	this.lambda = val;
@@ -106,6 +130,8 @@ public abstract class Model extends IloCplex {
     /**
      * Sets the objective-specific parameter for the objectives with a healthy-left,
      * unhealthy-right approach (HLUR and HAPSA).
+     * 
+     * @param val the new value for theta
      */
     public void setTheta(double val) {
 	this.theta = val;

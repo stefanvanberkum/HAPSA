@@ -378,6 +378,10 @@ public class SSP extends Model {
      * Equation (4m) in Flamand (2018). This constraint ensures that any product
      * that cannot cover all intermediate sections between segments k1 and k3 (k1 <
      * k2 < k3), is not allocated to both segments k1 and k3.
+     * 
+     * @param k1      the index of any segment
+     * @param product any product
+     * @param j       the index of the product
      */
     private void add4m(int k1, Product product, int j) {
 	try {
@@ -488,19 +492,11 @@ public class SSP extends Model {
 			double gammah = this.gamma / product.getHealthScore();
 			double gammahfc = fc * gammah;
 			multiplier[k][j] -= gammahfc;
-
-			// Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
-			double thetah = this.theta * product.getHealthScore();
-			multiplier[k][j] += thetah;
 			break;
 		    case HLUR:
 			if (this.theta == null) {
 			    throw new IllegalStateException("Theta has not been initialized.");
 			}
-
-			// Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
-			double thetah2 = this.theta * product.getHealthScore();
-			multiplier[k][j] += thetah2;
 			break;
 		    case VIS:
 			if (this.gamma == null) {
@@ -527,6 +523,12 @@ public class SSP extends Model {
 
 			    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 				Product product2 = this.store.getProducts().get(j2);
+
+				// Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
+				// Note that this simply adds (theta * h_j1 * s[k1][j1]) for each segment to the
+				// right of k1.
+				double thetah = this.theta * product2.getHealthScore();
+				multiplier[k][j2] += thetah;
 
 				// Healthy-left, unhealthy-right approach ( -(theta * h_j2 * s[k2][j2])).
 				multiplier[k2][j2] -= this.theta * product2.getHealthScore();

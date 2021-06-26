@@ -40,16 +40,27 @@ import java.util.TreeSet;
 public class Solution {
 
     /**
-     * The three stop criteria, or reasons for termination. GAP: the optimality gap
-     * has fallen below a user-specified threshold. LOOP: the algorithm has looped
-     * over all shelves for a user-specified number of times. TIME: the algorithm
-     * has terminated due to a user-specified time limit.
+     * The three stop criteria, or reasons for termination.
      *
      * @author Stefan van Berkum
      *
      */
     enum Termination {
-	GAP, LOOP, TIME
+	/**
+	 * The optimality gap has fallen below a user-specified threshold.
+	 */
+	GAP,
+
+	/**
+	 * The algorithm has looped over all shelves for a user-specified number of
+	 * times.
+	 */
+	LOOP,
+
+	/**
+	 * The algorithm has terminated due to a user-specified time limit.
+	 */
+	TIME
     }
 
     /** The current objective value of this problem. */
@@ -61,7 +72,7 @@ public class Solution {
      */
     private double[][] s;
 
-    /* The store considered in this solution. */
+    /** The store considered in this solution. */
     private Store store;
 
     /** The reason of termination for the re-optimization algorithm. */
@@ -98,14 +109,13 @@ public class Solution {
 	this.store = store;
     }
 
-    // TODO set private
     /**
      * Writes a matrix to a csv file.
      * 
      * @param fileName the name of the csv file
      * @param var      the variable to be written to csv
      */
-    public static void writeVar(String fileName, double[][] var) {
+    private static void writeVar(String fileName, double[][] var) {
 	try (PrintWriter out = new PrintWriter(new FileWriter(fileName))) {
 	    for (int i = 0; i < var.length; i++) {
 		StringBuilder row = new StringBuilder(3 * var[0].length);
@@ -496,10 +506,10 @@ public class Solution {
 			double sc = this.s[startK + k][j] / segment.getCapacity();
 			double fsc = segment.getAttractiveness() * sc;
 			profit += product.getMaxProfit() * fsc;
-			double hsc = product.getHealthScore() * sc;
-			shs += hsc;
-			svhs += segment.getAttractiveness() * hsc;
-			seghs[k] += hsc;
+			double hs = product.getHealthScore() * this.s[startK + k][j];
+			shs += hs;
+			svhs += segment.getAttractiveness() * hs;
+			seghs[k] += hs;
 		    }
 		}
 	    }
@@ -589,7 +599,6 @@ public class Solution {
 			objective -= param * this.y[startK + k][j] / product.getHealthScore();
 			break;
 		    case HLUR:
-			objective += param * this.s[startK + k][j] * product.getHealthScore();
 			break;
 		    default:
 			objective -= param / product.getHealthScore() * fsc;
@@ -605,6 +614,11 @@ public class Solution {
 
 			    for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 				Product product2 = this.store.getProducts().get(j2);
+
+				// Healthy-left, unhealthy-right approach (theta * h_j1 * s[k1][j1]).
+				objective += param * this.s[startK + k][j2] * product2.getHealthScore();
+
+				// Healthy-left, unhealthy-right approach ( -(theta * h_j2 * s[k2][j2])).
 				objective -= param * this.s[startK + k2][j2] * product2.getHealthScore();
 			    }
 			}
@@ -664,9 +678,6 @@ public class Solution {
 
 		    // Visibility penalty.
 		    objective -= gamma / product.getHealthScore() * fsc;
-
-		    // Healthy-left, unhealthy-right approach.
-		    objective += theta * this.s[startK + k][j] * product.getHealthScore();
 		}
 		if ((k + 1) % nh != 0) {
 		    // Shelf segment k is not the rightmost segment.
@@ -676,6 +687,8 @@ public class Solution {
 
 			for (int j2 = 0; j2 < this.store.getProducts().size(); j2++) {
 			    Product product2 = this.store.getProducts().get(j2);
+
+			    objective += theta * this.s[startK + k][j2] * product2.getHealthScore();
 			    objective -= theta * this.s[startK + k2][j2] * product2.getHealthScore();
 			}
 		    }

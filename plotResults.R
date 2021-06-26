@@ -5,9 +5,8 @@
 library("ggplot2")
 
 # Set directory.
-# setwd("C:/Users/Stefan van Berkum/git/HAPSA/HAPSA/Results/")
-setwd("C:/Users/Stefan van Berkum/Google Drive/Studie/Thesis/Back-up/Results Old/")
-plot_out <- "C:/Users/Stefan van Berkum/Google Drive/Studie/Thesis/Back-up/Graphs Old/"
+setwd("C:/Users/Stefan van Berkum/git/HAPSA/HAPSA/Results/")
+plot_out <- "C:/Users/Stefan van Berkum/Google Drive/Studie/Thesis/Figures/Plots/"
 
 # Read files.
 apsa <- read.table("APSA/CSV/30_240_scores.csv", header = TRUE, sep = ",")
@@ -15,7 +14,8 @@ apsa <- read.table("APSA/CSV/30_240_scores.csv", header = TRUE, sep = ",")
 gamm <- c(
   0.0, 5.0, 10.0, 15.0, 20.0, 25.0, 30.0, 35.0, 40.0, 45.0, 50.0, 55.0,
   60.0, 65.0, 70.0, 75.0, 80.0, 85.0, 90.0, 95.0, 100.0, 105.0, 110.0,
-  115.0, 120.0, 125.0
+  115.0, 120.0, 125.0, 130.0, 135.0, 140.0, 145.0, 150.0, 155.0, 160.0, 165.0,
+  170.0, 175.0, 180.0, 185.0, 190.0, 195.0, 200.0
 )
 
 results <- apsa
@@ -150,8 +150,9 @@ ggsave(out_path, width = 150, height = 100, units = "mm", dpi = 600)
 ggplot(data = SHS_ratios, aes(x = Gamma, y = Ratio)) +
   geom_point() +
   geom_smooth(method = loess, formula = y ~ x) +
-  geom_hline(aes(yintercept = 1)) +
-  xlab(expression(gamma))
+  geom_hline(aes(yintercept = 0)) +
+  xlab(expression(gamma)) +
+  ylim(-10, 100)
 out_path = paste(plot_out, "dSHS_dProfit.png")
 ggsave(out_path, width = 150, height = 100, units = "mm", dpi = 600)
 
@@ -159,8 +160,9 @@ ggsave(out_path, width = 150, height = 100, units = "mm", dpi = 600)
 ggplot(data = SVHS_ratios, aes(x = Gamma, y = Ratio)) +
   geom_point() +
   geom_smooth(method = loess, formula = y ~ x) +
-  geom_hline(aes(yintercept = 1)) +
-  xlab(expression(gamma))
+  geom_hline(aes(yintercept = 0)) +
+  xlab(expression(gamma)) +
+  ylim(-10, 100)
 out_path = paste(plot_out, "dSVHS_dProfit.png")
 ggsave(out_path, width = 150, height = 100, units = "mm", dpi = 600)
 
@@ -168,7 +170,7 @@ ggsave(out_path, width = 150, height = 100, units = "mm", dpi = 600)
 ggplot(data = ratios, aes(x = Gamma, y = Ratio, color = Score, shape = Score)) +
   geom_point() +
   geom_smooth(method = loess, formula = y ~ x) +
-  geom_hline(aes(yintercept = 1)) +
+  geom_hline(aes(yintercept = 0)) +
   xlab(expression(gamma))
 out_path = paste(plot_out, "dResults_dProfit.png")
 ggsave(out_path, width = 150, height = 100, units = "mm", dpi = 600)

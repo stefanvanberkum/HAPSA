@@ -41,6 +41,24 @@ public class StoreSimulator {
     /** The horizontal attractiveness bonus for end-of-shelf segments. */
     private static double[] END_SEG = new double[] { 0.0, 0.05 };
 
+    /**
+     * The fraction of products to be randomly selected for the symmetric assortment
+     * affinity relationship.
+     */
+    private static double H1_FRAC = 0.01;
+
+    /**
+     * The fraction of products to be randomly selected for the asymmetric
+     * assortment affinity relationship.
+     */
+    private static double H2_FRAC = 0.01;
+
+    /**
+     * The fraction of products to be randomly selected for the allocation affinity
+     * relationship.
+     */
+    private static double H3_FRAC = 0.01;
+
     /** The lower bound for the randomly generated health score for each product. */
     private static double HEALTH_SCORE_LB = 1;
 
@@ -52,6 +70,12 @@ public class StoreSimulator {
 
     /** The horizontal base shelf attractiveness categories (t). */
     private static double[] HORIZONTAL_CAT = new double[] { 0.05, 0.25, 0.45, 0.65, 0.85 };
+
+    /**
+     * The fraction of products to be randomly selected for the allocation
+     * disaffinity relationship.
+     */
+    private static double L_FRAC = 0.01;
 
     /**
      * The lower bound for the randomly generated maximum attainable profit for each
@@ -86,12 +110,6 @@ public class StoreSimulator {
      */
     private static double MIN_SPACE_UB = 3;
 
-    /**
-     * The fraction of products to be randomly selected for each affinity
-     * relationship.
-     */
-    private static double RELATION_FRAC = 0.01;
-
     /** The number of vertical positions on each shelf. */
     private static int VERTICAL = 6;
 
@@ -107,10 +125,81 @@ public class StoreSimulator {
     /** The random number generator. */
     private Random rand;
 
+    /**
+     * Constructs a store simulator.
+     * 
+     * @param nProducts the number of products to be simulated
+     * @param nShelves  the number of shelves to be simulated
+     * @param seed      the random number generator seed
+     */
     public StoreSimulator(int nProducts, int nShelves, int seed) {
 	this.nProducts = nProducts;
 	this.nShelves = nShelves;
 	this.rand = new Random(seed);
+    }
+
+    /**
+     * Set the store simulator parameters.
+     * 
+     * @param CAPACITY        The capacity of each shelf segment
+     * @param END_SEG         The horizontal attractiveness bonus for end-of-shelf
+     *                        segments
+     * @param HEALTH_SCORE_LB The lower bound for the randomly generated health
+     *                        score for each product
+     * @param HEALTH_SCORE_UB The upper bound for the randomly generated health
+     *                        score for each product
+     * @param HORIZONTAL      The number of horizontal positions on each shelf
+     * @param HORIZONTAL_CAT  The horizontal base shelf attractiveness categories
+     *                        (t)
+     * @param MAX_PROFIT_LB   The lower bound for the randomly generated maximum
+     *                        attainable profit for each product
+     * @param MAX_PROFIT_UB   The upper bound for the randomly generated maximum
+     *                        attainable profit for each product
+     * @param MAX_SPACE_UB    The upper bound for the randomly generated maximum
+     *                        space for each product
+     * @param MIDDLE_SEG      The horizontal attractiveness bonus for middle
+     *                        segments
+     * @param MIN_ALLOCATED   The minimum allocated space for each product (if
+     *                        selected)
+     * @param MIN_SPACE_LB    The lower bound for the randomly generated minimum
+     *                        space for each product
+     * @param MIN_SPACE_UB    The upper bound for the randomly generated minimum
+     *                        space for each product
+     * @param L_FRAC          The fraction of products to be randomly selected for
+     *                        the allocation disaffinity relationship
+     * @param H1_FRAC         The fraction of products to be randomly selected for
+     *                        the symmetric assortment affinity relationship
+     * @param H2_FRAC         The fraction of products to be randomly selected for
+     *                        the asymmetric assortment affinity relationship
+     * @param H3_FRAC         The fraction of products to be randomly selected for
+     *                        the allocation affinity relationship
+     * @param VERTICAL        The number of vertical positions on each shelf
+     * @param VERTICAL_CAT    The vertical attractiveness categories, from the top
+     *                        to the bottom shelf
+     */
+    public static void setParameters(double CAPACITY, double[] END_SEG, double HEALTH_SCORE_LB, double HEALTH_SCORE_UB,
+	    int HORIZONTAL, double[] HORIZONTAL_CAT, double MAX_PROFIT_LB, double MAX_PROFIT_UB, double MAX_SPACE_UB,
+	    double[] MIDDLE_SEG, double MIN_ALLOCATED, double MIN_SPACE_LB, double MIN_SPACE_UB, double L_FRAC,
+	    double H1_FRAC, double H2_FRAC, double H3_FRAC, int VERTICAL, double[] VERTICAL_CAT) {
+	StoreSimulator.CAPACITY = CAPACITY;
+	StoreSimulator.END_SEG = END_SEG;
+	StoreSimulator.HEALTH_SCORE_LB = HEALTH_SCORE_LB;
+	StoreSimulator.HEALTH_SCORE_UB = HEALTH_SCORE_UB;
+	StoreSimulator.HORIZONTAL = HORIZONTAL;
+	StoreSimulator.HORIZONTAL_CAT = HORIZONTAL_CAT;
+	StoreSimulator.MAX_PROFIT_LB = MAX_PROFIT_LB;
+	StoreSimulator.MAX_PROFIT_UB = MAX_PROFIT_UB;
+	StoreSimulator.MAX_SPACE_UB = MAX_SPACE_UB;
+	StoreSimulator.MIDDLE_SEG = MIDDLE_SEG;
+	StoreSimulator.MIN_ALLOCATED = MIN_ALLOCATED;
+	StoreSimulator.MIN_SPACE_LB = MIN_SPACE_LB;
+	StoreSimulator.MIN_SPACE_UB = MIN_SPACE_UB;
+	StoreSimulator.L_FRAC = L_FRAC;
+	StoreSimulator.H1_FRAC = H1_FRAC;
+	StoreSimulator.H2_FRAC = H2_FRAC;
+	StoreSimulator.H3_FRAC = H3_FRAC;
+	StoreSimulator.VERTICAL = VERTICAL;
+	StoreSimulator.VERTICAL_CAT = VERTICAL_CAT;
     }
 
     /**
@@ -122,12 +211,6 @@ public class StoreSimulator {
 	ArrayList<Product> products = new ArrayList<Product>(this.nProducts);
 	ArrayList<Shelf> shelves = new ArrayList<Shelf>(this.nShelves);
 	ArrayList<Segment> segments = new ArrayList<Segment>(this.nShelves * HORIZONTAL * VERTICAL);
-
-	int nSelect = Math.toIntExact(Math.round(RELATION_FRAC * this.nProducts));
-	HashSet<SymmetricPair> allocationAffinity = new HashSet<SymmetricPair>(nSelect);
-	HashSet<SymmetricPair> allocationDisaffinity = new HashSet<SymmetricPair>(nSelect);
-	HashSet<AsymmetricPair> asymmetricAssortment = new HashSet<AsymmetricPair>(nSelect);
-	HashSet<SymmetricPair> symmetricAssortment = new HashSet<SymmetricPair>(nSelect);
 
 	// Simulate the product categories.
 	for (int j = 0; j < this.nProducts; j++) {
@@ -146,10 +229,27 @@ public class StoreSimulator {
 	}
 
 	// Simulate affinity relationships.
+	int nSelect = Math.toIntExact(Math.round(H3_FRAC * this.nProducts));
+	HashSet<SymmetricPair> allocationAffinity = new HashSet<SymmetricPair>(nSelect);
 	for (int x = 0; x < nSelect; x++) {
 	    allocationAffinity.add(this.randomSymmetric(products));
+	}
+
+	nSelect = Math.toIntExact(Math.round(L_FRAC * this.nProducts));
+	HashSet<SymmetricPair> allocationDisaffinity = new HashSet<SymmetricPair>(nSelect);
+	for (int x = 0; x < nSelect; x++) {
 	    allocationDisaffinity.add(this.randomSymmetric(products));
+	}
+
+	nSelect = Math.toIntExact(Math.round(H2_FRAC * this.nProducts));
+	HashSet<AsymmetricPair> asymmetricAssortment = new HashSet<AsymmetricPair>(nSelect);
+	for (int x = 0; x < nSelect; x++) {
 	    asymmetricAssortment.add(this.randomAsymmetric(products));
+	}
+
+	nSelect = Math.toIntExact(Math.round(H1_FRAC * this.nProducts));
+	HashSet<SymmetricPair> symmetricAssortment = new HashSet<SymmetricPair>(nSelect);
+	for (int x = 0; x < nSelect; x++) {
 	    symmetricAssortment.add(this.randomSymmetric(products));
 	}
 	return new Store(products, shelves, segments, allocationAffinity, allocationDisaffinity, asymmetricAssortment,
