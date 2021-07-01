@@ -41,12 +41,12 @@ import ilog.cplex.IloCplex;
 import ilog.cplex.IloCplex.ParameterSet;
 
 /**
- * The ParamterTuner class provides methods to tune the CPLEX parameters for the
- * optimization-based heuristic approach to shelf space planning. The optimal
- * parameters are determined for the first iteration of the initialization
- * procedure, the continuous relaxation, and the first iteration of the
- * re-optimization procedure. The results are saved to a file and automatically
- * loaded into the {@link Main} class.
+ * The ParameterTuner class provides methods to tune the CPLEX parameters for
+ * the optimization-based heuristic approach to shelf space planning. The
+ * optimal parameters are determined for the first iteration of the
+ * initialization procedure, the continuous relaxation, and the first iteration
+ * of the re-optimization procedure. The results are saved to a file and
+ * automatically loaded into the {@link Main} class.
  *
  * NOTE. Re-running the parameter tuning overwrites the previous parameter
  * tuning files.
