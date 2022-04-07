@@ -24,13 +24,23 @@ Health-adjusted assortment planning and shelf-space allocation (HAPSA).
 
 ## How to cite?
 BibTeX:
-@thesis{VanBerkum2021, 
-author = {{Van Berkum}, Stefan}, 
-school = {Erasmus University Rotterdam}, 
-title = {{Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization}}, 
-type = {bachelor's thesis}, 
-url = {http://hdl.handle.net/2105/59932}, 
-year = {2021} 
+
+@thesis{VanBerkum2021,
+
+author = {{Van Berkum}, Stefan},
+
+school = {Erasmus University Rotterdam},
+
+title = {{Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization}},
+
+type = {bachelor's thesis},
+
+url = {http://hdl.handle.net/2105/59932},
+
+year = {2021}
+
 }
+
 APA:
+
 Van Berkum, S. (2021). _Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization._ (bachelor's thesis). Erasmus University Rotterdam. Retrieved from http://hdl.handle.net/2105/59932
