@@ -23,10 +23,6 @@ Health-adjusted assortment planning and shelf-space allocation (HAPSA).
 - Shelf colormaps can be obtained by running plotShelf.m (we ran it in MATLAB R2020a).
 
 ## How to cite?
-APA:
-
-Van Berkum, S. (2021). _Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization._ (bachelor's thesis). Erasmus University Rotterdam. Retrieved from http://hdl.handle.net/2105/59932
-
 BibTeX:
 
 @thesis{VanBerkum2021, 
@@ -36,3 +32,7 @@ title = {{Factoring health into the equation: Promoting healthy purchasing decis
 type = {bachelor's thesis}, 
 url = {http://hdl.handle.net/2105/59932}, 
 year = {2021}}
+
+APA:
+
+Van Berkum, S. (2021). _Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization._ (bachelor's thesis). Erasmus University Rotterdam. Retrieved from http://hdl.handle.net/2105/59932
