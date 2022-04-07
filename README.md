@@ -17,7 +17,7 @@ Health-adjusted assortment planning and shelf-space allocation (HAPSA).
 ## How to use?
 - Run Main.java for your specific problem (the way we ran it is provided in the main).
   - Any store can be simulated using the StoreSimulator.java class.
-  - The possible objective types are: Assortment Planning and Shelf-space Allocation (APSA), APSA with an availability penalty (AVA), Health-adjusted APSA (HAPSA), APSA with a Healthy-Left, Unhealthy Right approach (HLUR), and APSA with a visibility penalty (VIS).
+  - The possible objective types are: assortment planning and shelf-space allocation (APSA), APSA with an availability penalty (AVA), health-adjusted APSA (HAPSA), APSA with a healthy-left, unhealthy-right approach (HLUR), and APSA with a visibility penalty (VIS).
 - For each model, a summary is written to a text file and the decision variables s_kj, x_ij, and y_kj are written to a CSV file.
 - Results can be plotted using plotResults.R (we ran it in RStudio).
 - Shelf colormaps can be obtained by running plotShelf.m (we ran it in MATLAB R2020a).
