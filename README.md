@@ -31,7 +31,7 @@ school = {Erasmus University Rotterdam},
 title = {{Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization}}, 
 type = {bachelor's thesis}, 
 url = {http://hdl.handle.net/2105/59932}, 
-year = {2021} }
+year = {2021}}
 
 APA:
 
