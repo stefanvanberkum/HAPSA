@@ -1,5 +1,5 @@
 # HAPSA
-Health-adjusted assortment planning and shelf-space allocation (HAPSA).
+Health-adjusted assortment planning and shelf-space allocation (HAPSA). Source code for Van Berkum (2021), paper available at http://hdl.handle.net/2105/59932.
 
 ## Set-up instructions.
 - Set-up CPLEX for Java:
