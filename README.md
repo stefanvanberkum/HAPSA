@@ -1,7 +1,7 @@
 # HAPSA
 Health-adjusted assortment planning and shelf-space allocation (HAPSA). Official implementation of the methods described in Van Berkum ([2021](http://hdl.handle.net/2105/59932)).
 
-## Set-up instructions.
+## Set-up instructions
 - Set-up CPLEX for Java:
   - Make sure you have a recent version of Java JDK installed on your device (we used Java 15.0.2), if not download from: https://www.oracle.com/nl/java/technologies/javase-downloads.html (most recent version) or https://www.oracle.com/java/technologies/javase/jdk15-archive-downloads.html (Java 15.0.2).
   - You can open and edit the code in any editor, but we recommend the Eclipse Java IDE (we used 2021-03): https://www.eclipse.org/downloads/.
