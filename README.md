@@ -29,11 +29,11 @@ BibTeX:
 author = {{Van Berkum}, Stefan}, 
 school = {Erasmus University Rotterdam}, 
 title = {{Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization}}, 
-type = {bachelor's thesis}, 
+type = {Bachelor's thesis}, 
 url = {http://hdl.handle.net/2105/59932}, 
 year = {2021}}
 ```
 
 APA:
 
-Van Berkum, S. (2021). _Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization._ (bachelor's thesis). Erasmus University Rotterdam. Retrieved from http://hdl.handle.net/2105/59932
+Van Berkum, S. (2021). _Factoring health into the equation: Promoting healthy purchasing decisions through shelf-space optimization._ (Bachelor's thesis). Erasmus University Rotterdam. Retrieved from http://hdl.handle.net/2105/59932
